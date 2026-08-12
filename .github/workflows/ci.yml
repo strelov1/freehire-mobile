@@ -26,6 +26,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Expo's dev server writes this ambient-types file (referencing
+      # expo/types, which declares *.css/*.module.css imports among other
+      # things) on first boot; it's gitignored, and a plain `npm ci` in CI
+      # never boots the server, so tsc silently drops those declarations
+      # without it. Static content — Expo's own template for the file.
+      - name: Generate expo-env.d.ts
+        run: |
+          cat > expo-env.d.ts <<'EOF'
+          /// <reference types="expo/types" />
+
+          // NOTE: This file should not be edited and should be in your git ignore
+          EOF
+
       - name: Lint
         run: npm run lint
 
