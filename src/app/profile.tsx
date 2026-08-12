@@ -10,14 +10,18 @@ import { facetValueLabel, formatDate, profileLocationSummary } from '@/lib/forma
 import { useProfile } from '@/lib/useProfile';
 
 /** One row of chips (specializations or skills), reusing the identity
- *  section's badge style. Renders nothing for an empty list. */
+ *  section's badge shape but without its `capitalize` transform: unlike the
+ *  plain-word role/beta badges, these values (facet labels, raw skill
+ *  tokens) already carry their intended casing — iOS's capitalize also
+ *  lowercases the rest of each word, which would mangle a label like
+ *  "DevOps" into "Devops". Renders nothing for an empty list. */
 function ChipRow({ c, values }: { c: ReturnType<typeof getColors>; values: string[] }) {
   if (!values.length) return null;
   return (
     <View style={styles.chipRow}>
       {values.map((v) => (
         <View key={v} style={[styles.badge, { backgroundColor: c.brandMuted }]}>
-          <Text style={[styles.badgeText, { color: c.brandStrong }]}>{v}</Text>
+          <Text style={[styles.badgeText, styles.chipText, { color: c.brandStrong }]}>{v}</Text>
         </View>
       ))}
     </View>
@@ -179,6 +183,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
+  },
+  chipText: {
+    textTransform: 'none',
   },
   locationLine: {
     fontSize: 13,
