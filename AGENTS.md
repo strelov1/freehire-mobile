@@ -9,3 +9,8 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before 
 push/PR to `master`. Pre-commit: [lefthook](https://github.com/evilmartians/lefthook)
 (`go install github.com/evilmartians/lefthook@latest`, then `lefthook install`
 once per clone) runs eslint + tsc on staged files.
+
+`.github/workflows/eas-build.yml` triggers an EAS Build manually (platform +
+profile inputs). Requires the `EXPO_TOKEN` repo secret; production Android
+additionally requires the release keystore to already be uploaded to EAS via
+`eas credentials` (`eas.json` points production Android at remote credentials).

@@ -1,0 +1,47 @@
+name: EAS Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to build
+        type: choice
+        options: [ios, android, all]
+        required: true
+      profile:
+        description: EAS build profile
+        type: choice
+        options: [development, preview, production]
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Requires the EXPO_TOKEN repo secret (Expo access token) for
+      # non-interactive eas-cli auth. Production Android builds additionally
+      # require the release keystore to already be uploaded to EAS via
+      # `eas credentials` (eas.json points production Android at remote,
+      # EAS-managed credentials rather than a local keystore file).
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          PROFILE: ${{ inputs.profile }}
+        run: eas build --platform "$PLATFORM" --profile "$PROFILE" --non-interactive --no-wait
