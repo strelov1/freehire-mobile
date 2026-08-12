@@ -52,9 +52,9 @@ export default function FeedScreen() {
   // lives inside the field (trailing), and the result count sits just beneath.
   const top = (
     <View style={styles.top}>
-      {/* Search and the account entry share one row — the field flexes and ends
+      {/* Search and the profile entry share one row — the field flexes and ends
           just before the avatar. Signed out the avatar opens the auth modal;
-          signed in, the account screen. */}
+          signed in, the profile screen. */}
       <View style={styles.searchRow}>
         <View style={[styles.search, { backgroundColor: c.card, borderColor: c.border }]}>
           <SymbolView name="magnifyingglass" size={17} tintColor={c.mutedForeground} />
@@ -90,10 +90,10 @@ export default function FeedScreen() {
         </View>
 
         <Pressable
-          onPress={() => router.push(user ? '/account' : '/auth')}
+          onPress={() => router.push(user ? '/profile' : '/auth')}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel={user ? 'Account' : 'Sign in'}
+          accessibilityLabel={user ? 'Profile' : 'Sign in'}
           style={({ pressed }) => [styles.account, pressed && { opacity: 0.6 }]}>
           <SymbolView
             name={user ? 'person.crop.circle.fill' : 'person.crop.circle'}

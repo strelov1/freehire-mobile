@@ -5,9 +5,9 @@
 
 ## 2. Route rename: account → profile
 
-- [ ] 2.1 `git mv src/app/account.tsx src/app/profile.tsx`.
-- [ ] 2.2 Update the `Stack.Screen` entry in `src/app/_layout.tsx` from `name="account"` to `name="profile"`.
-- [ ] 2.3 Update `router.push(user ? '/account' : '/auth')` in `src/app/index.tsx` to `/profile`.
+- [x] 2.1 `git mv src/app/account.tsx src/app/profile.tsx`.
+- [x] 2.2 Update the `Stack.Screen` entry in `src/app/_layout.tsx` from `name="account"` to `name="profile"`.
+- [x] 2.3 Update `router.push(user ? '/account' : '/auth')` in `src/app/index.tsx` to `/profile`.
 
 ## 3. Profile screen: drop push UI, add the Profile section
 

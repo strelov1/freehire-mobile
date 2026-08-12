@@ -59,10 +59,10 @@ export default function RootLayout() {
               {/* No native header — the detail screen draws its own compact back
                   chevron so the empty header bar never eats vertical space. */}
               <Stack.Screen name="jobs/[slug]" options={{ headerShown: false }} />
-              {/* Filters, auth, and account all present as modals over the feed. */}
+              {/* Filters, auth, and profile all present as modals over the feed. */}
               <Stack.Screen name="filters" options={{ headerShown: false, presentation: 'modal' }} />
               <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'modal' }} />
-              <Stack.Screen name="account" options={{ headerShown: false, presentation: 'modal' }} />
+              <Stack.Screen name="profile" options={{ headerShown: false, presentation: 'modal' }} />
             </Stack>
           </FilterProvider>
         </AuthProvider>
