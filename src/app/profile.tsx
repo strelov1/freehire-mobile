@@ -1,28 +1,40 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/authStore';
 import { getColors, Radius, Space } from '@/constants/freehire';
-import { formatDate } from '@/lib/format';
-import { usePushNotifications } from '@/lib/usePushNotifications';
+import { facetValueLabel, formatDate, profileLocationSummary } from '@/lib/format';
+import { useProfile } from '@/lib/useProfile';
+
+/** One row of chips (specializations or skills), reusing the identity
+ *  section's badge style. Renders nothing for an empty list. */
+function ChipRow({ c, values }: { c: ReturnType<typeof getColors>; values: string[] }) {
+  if (!values.length) return null;
+  return (
+    <View style={styles.chipRow}>
+      {values.map((v) => (
+        <View key={v} style={[styles.badge, { backgroundColor: c.brandMuted }]}>
+          <Text style={[styles.badgeText, { color: c.brandStrong }]}>{v}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 /**
- * The account screen (modal) for a signed-in user: their email, a couple of
- * status badges, and a sign-out button. Signing out clears the session and
- * closes the modal back to the feed.
+ * The profile screen (modal) for a signed-in user: their identity, a
+ * read-only view of their saved profile (specializations, skills, location),
+ * and a sign-out button. Signing out clears the session and closes the modal
+ * back to the feed.
  */
-export default function AccountScreen() {
+export default function ProfileScreen() {
   const c = getColors(useColorScheme());
   const { user, signOut } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useProfile();
   const [busy, setBusy] = useState(false);
-  const push = usePushNotifications();
-  // The outcome of the last test send. Kept separate from `push.error`: a test
-  // that reports "no device registered" is a successful call with bad news, not
-  // a failure, and the two read differently.
-  const [testResult, setTestResult] = useState<string | null>(null);
 
   async function onSignOut() {
     setBusy(true);
@@ -30,27 +42,19 @@ export default function AccountScreen() {
     router.back();
   }
 
-  async function onTogglePush(next: boolean) {
-    setTestResult(null);
-    await (next ? push.enable() : push.disable());
-  }
-
-  async function onTestPush() {
-    setTestResult(await push.sendTest());
-  }
-
   const joined = formatDate(user?.created_at);
+  const locationLines = profile ? profileLocationSummary(profile.location_preferences) : [];
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={[styles.fill, { backgroundColor: c.background }]}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: c.foreground }]}>Account</Text>
+        <Text style={[styles.title, { color: c.foreground }]}>Profile</Text>
         <Pressable onPress={() => router.back()} hitSlop={12} style={({ pressed }) => pressed && { opacity: 0.5 }}>
           <SymbolView name="xmark" size={20} weight="semibold" tintColor={c.foreground} />
         </Pressable>
       </View>
 
-      <View style={styles.body}>
+      <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.identity}>
           <SymbolView name="person.crop.circle.fill" size={56} tintColor={c.brandStrong} />
           <Text style={[styles.email, { color: c.foreground }]} numberOfLines={1}>
@@ -73,45 +77,29 @@ export default function AccountScreen() {
           ) : null}
         </View>
 
-        <View style={styles.settings}>
-          <View style={[styles.settingRow, { borderColor: c.border, backgroundColor: c.card }]}>
-            <View style={styles.settingText}>
-              <Text style={[styles.settingLabel, { color: c.foreground }]}>Push notifications</Text>
-              <Text style={[styles.settingHint, { color: c.mutedForeground }]}>
-                Alerts from freehire on this device.
-              </Text>
+        <View style={styles.profileSection}>
+          <Text style={[styles.sectionTitle, { color: c.foreground }]}>Profile</Text>
+          {profileLoading ? (
+            <ActivityIndicator color={c.mutedForeground} />
+          ) : profile ? (
+            <View style={styles.profileBody}>
+              <ChipRow c={c} values={profile.specializations.map((s) => facetValueLabel('category', s))} />
+              <ChipRow c={c} values={profile.skills} />
+              {locationLines.map((line) => (
+                <Text key={line} style={[styles.locationLine, { color: c.mutedForeground }]}>
+                  {line}
+                </Text>
+              ))}
             </View>
-            {push.busy ? (
-              <ActivityIndicator color={c.mutedForeground} />
-            ) : (
-              <Switch
-                value={push.enabled}
-                onValueChange={onTogglePush}
-                disabled={push.loading}
-                trackColor={{ true: c.brand, false: c.border }}
-              />
-            )}
-          </View>
-
-          {push.enabled ? (
-            <Pressable
-              onPress={onTestPush}
-              disabled={push.busy}
-              hitSlop={8}
-              style={({ pressed }) => pressed && { opacity: 0.5 }}>
-              <Text style={[styles.testLink, { color: c.brandStrong }]}>Send test notification</Text>
-            </Pressable>
-          ) : null}
-
-          {/* Error red matches the auth modal's — there is no palette token for it. */}
-          {(push.error ?? testResult) ? (
-            <Text
-              style={[styles.settingNote, { color: push.error ? '#dc2626' : c.mutedForeground }]}>
-              {push.error ?? testResult}
+          ) : (
+            <Text style={[styles.emptyText, { color: c.mutedForeground }]}>
+              No profile saved yet. Set one up at freehire.dev/my/profile.
             </Text>
-          ) : null}
+          )}
         </View>
+      </ScrollView>
 
+      <View style={styles.footer}>
         <Pressable
           onPress={onSignOut}
           disabled={busy}
@@ -146,10 +134,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   body: {
-    flex: 1,
     paddingHorizontal: Space.lg,
     paddingTop: Space.xl,
-    justifyContent: 'space-between',
+    paddingBottom: Space.xl,
+    gap: Space.xl,
   },
   identity: {
     alignItems: 'center',
@@ -177,38 +165,31 @@ const styles = StyleSheet.create({
   joined: {
     fontSize: 13,
   },
-  settings: {
+  profileSection: {
     gap: Space.sm,
   },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Space.md,
-    borderWidth: 1,
-    borderRadius: Radius.lg,
-    paddingHorizontal: Space.md,
-    paddingVertical: Space.sm,
-  },
-  settingText: {
-    flexShrink: 1,
-    gap: 2,
-  },
-  settingLabel: {
+  sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  settingHint: {
+  profileBody: {
+    gap: Space.sm,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  locationLine: {
     fontSize: 13,
   },
-  testLink: {
+  emptyText: {
     fontSize: 14,
-    fontWeight: '600',
-    paddingHorizontal: Space.xs,
+    lineHeight: 20,
   },
-  settingNote: {
-    fontSize: 13,
-    paddingHorizontal: Space.xs,
+  footer: {
+    paddingHorizontal: Space.lg,
+    paddingBottom: Space.lg,
   },
   signOut: {
     borderWidth: 1,
@@ -216,7 +197,6 @@ const styles = StyleSheet.create({
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Space.lg,
   },
   signOutText: {
     fontSize: 16,
