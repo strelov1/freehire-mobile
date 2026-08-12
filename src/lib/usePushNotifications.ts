@@ -10,8 +10,9 @@ const PERMISSION_DENIED =
   'Notifications are turned off for freehire. Enable them in your device settings, then try again.';
 
 /**
- * The Account screen's push switch: its state, the two actions that change it,
- * and the test send.
+ * A push-notification switch's state, the two actions that change it, and the
+ * test send. Not currently wired into any screen (see the add-mobile-profile-
+ * screen change) — kept for a future push-settings surface to reuse.
  *
  * State is derived, never stored: `enabled` is true when this device's Expo
  * token is among the registered devices the backend reports. Reads go through
