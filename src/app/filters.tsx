@@ -28,6 +28,10 @@ import { useFacetCounts } from '@/lib/useJobSearch';
 
 const MAX_COUNTRIES = 30;
 
+// Stable reference so the `countries` useMemo below doesn't invalidate every
+// render while `counts` is still loading.
+const EMPTY_FACETS: Record<string, Record<string, number>> = {};
+
 /** Debounce a value so rapid staging taps don't refetch counts on every tap. */
 function useDebounced<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -59,7 +63,7 @@ export default function FiltersScreen() {
   const { data: counts, isFetching } = useFacetCounts(debouncedQuery);
 
   const total = counts?.total;
-  const facetCountsMap = counts?.facets ?? {};
+  const facetCountsMap = counts?.facets ?? EMPTY_FACETS;
 
   // Countries, busiest-first, filtered by the search box (ISO2 code).
   const countries = useMemo(() => {

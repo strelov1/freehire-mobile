@@ -82,7 +82,7 @@ function parseHtml(html: string): Block[] {
   };
 
   const flush = () => {
-    while (runs.length && runs[runs.length - 1].text.trim() === '') runs.pop();
+    while (runs.length && runs[runs.length - 1]?.text.trim() === '') runs.pop();
     if (runs.length === 0) return;
     if (pending.kind === 'li') {
       blocks.push({ kind: 'li', ordered: pending.ordered, index: pending.index, runs });
@@ -100,8 +100,8 @@ function parseHtml(html: string): Block[] {
     last = at + m[0].length;
 
     const closing = m[0][1] === '/';
-    const tag = m[1].toLowerCase();
-    const attrs = m[2];
+    const tag = (m[1] ?? '').toLowerCase();
+    const attrs = m[2] ?? '';
 
     if (tag === 'br') {
       runs.push({ text: '\n', bold: false, italic: false, href });
@@ -119,7 +119,7 @@ function parseHtml(html: string): Block[] {
       if (closing) href = undefined;
       else {
         const hm = /href\s*=\s*["']([^"']*)["']/i.exec(attrs);
-        href = hm ? decodeEntities(hm[1]) : undefined;
+        href = hm ? decodeEntities(hm[1] ?? '') : undefined;
       }
       continue;
     }

@@ -15,7 +15,7 @@ function param(url: string, name: string): string | undefined {
   const m = url.match(new RegExp(`[?&#]${name}=([^&#]*)`));
   if (!m) return undefined;
   try {
-    return decodeURIComponent(m[1]);
+    return decodeURIComponent(m[1] ?? '');
   } catch {
     return m[1]; // malformed percent-encoding — hand back the raw value
   }

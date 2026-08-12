@@ -13,6 +13,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CompanyLogo } from '@/components/CompanyLogo';
+import { JobDescription } from '@/components/JobDescription';
+import { RealityBadge } from '@/components/RealityBadge';
+import { SaveButton } from '@/components/SaveButton';
+import { getColors, Radius, Space } from '@/constants/freehire';
+import { formatDate, formatSalary, summaryFacets } from '@/lib/format';
+import { useJob } from '@/lib/useJob';
+
 /** A compact back affordance — just a chevron, no label or bar. Pops the stack,
  *  or falls back to the feed when the screen was opened cold (e.g. a deep link
  *  with no history to go back to). */
@@ -28,14 +36,6 @@ function BackButton({ color }: { color: string }) {
     </Pressable>
   );
 }
-
-import { CompanyLogo } from '@/components/CompanyLogo';
-import { JobDescription } from '@/components/JobDescription';
-import { RealityBadge } from '@/components/RealityBadge';
-import { SaveButton } from '@/components/SaveButton';
-import { getColors, Radius, Space } from '@/constants/freehire';
-import { formatDate, formatSalary, summaryFacets } from '@/lib/format';
-import { useJob } from '@/lib/useJob';
 
 /**
  * The job-detail screen — a single-column port of the web's JobView (which
