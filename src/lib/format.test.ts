@@ -41,6 +41,11 @@ describe('profileLocationSummary', () => {
     expect(profileLocationSummary(loc)).toEqual(['Open to relocation: UK, US']);
   });
 
+  it('omits relocation when open is true but no targets are set', () => {
+    const loc: LocationPreferences = { relocation: { open: true } };
+    expect(profileLocationSummary(loc)).toEqual([]);
+  });
+
   it('omits relocation entirely when open is false, even with targets present', () => {
     const loc: LocationPreferences = {
       relocation: { open: false, regions: ['uk'], countries: ['us'] },

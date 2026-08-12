@@ -1,7 +1,7 @@
 ## 1. Location summary formatting (TDD, framework-free)
 
-- [ ] 1.1 Write failing tests in a new `src/lib/format.test.ts` for `profileLocationSummary(loc: LocationPreferences | null): string[]`: `null` → `[]`; work-modes-only profile → one line via `facetValueLabel('work_mode', …)` joined with ", "; remote reach (regions via `facetValueLabel('regions', …)`, countries uppercased) → one line; base (country/city, either or both present) → one line; relocation targets → one line, included only when `relocation.open` is true (omitted when `open` is false even if targets are present); a profile with every part present → all lines in a fixed order, each part independently omitted when it has no data.
-- [ ] 1.2 Implement `profileLocationSummary` in `src/lib/format.ts`, reusing the existing `WORK_MODE_LABELS`/`REGION_LABELS` maps and `label()`/`humanize()` helpers already in that file, until the tests pass.
+- [x] 1.1 Write failing tests in a new `src/lib/format.test.ts` for `profileLocationSummary(loc: LocationPreferences | null): string[]`: `null` → `[]`; work-modes-only profile → one line via `facetValueLabel('work_mode', …)` joined with ", "; remote reach (regions via `facetValueLabel('regions', …)`, countries uppercased) → one line; base (country/city, either or both present) → one line; relocation targets → one line, included only when `relocation.open` is true (omitted when `open` is false even if targets are present); a profile with every part present → all lines in a fixed order, each part independently omitted when it has no data.
+- [x] 1.2 Implement `profileLocationSummary` in `src/lib/format.ts`, reusing the existing `WORK_MODE_LABELS`/`REGION_LABELS` maps and `label()`/`humanize()` helpers already in that file, until the tests pass.
 
 ## 2. Route rename: account → profile
 

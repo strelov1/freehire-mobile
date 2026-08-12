@@ -295,8 +295,8 @@ function geoList(regions: string[] | undefined, countries: string[] | undefined)
  * saved profile has data for it. `null` (no saved `location_preferences`)
  * yields no lines. Relocation is included only when `relocation.open` is
  * true — an unopened relocation block's regions/countries are a stale draft,
- * not a stated preference (mirrors the web app's `buildLocationPreferences`
- * gating).
+ * not a stated preference (same gate `filtersFromProfile` in `jobFilters.ts`
+ * applies when seeding filters from a profile).
  */
 export function profileLocationSummary(loc: LocationPreferences | null): string[] {
   if (!loc) return [];
@@ -310,9 +310,13 @@ export function profileLocationSummary(loc: LocationPreferences | null): string[
   if (remote) lines.push(`Remote: ${remote}`);
 
   const base = loc.base;
-  if (base?.city && base.country) lines.push(`Based in: ${base.city}, ${base.country.toUpperCase()}`);
-  else if (base?.city) lines.push(`Based in: ${base.city}`);
-  else if (base?.country) lines.push(`Based in: ${base.country.toUpperCase()}`);
+  if (base?.city && base.country) {
+    lines.push(`Based in: ${base.city}, ${base.country.toUpperCase()}`);
+  } else if (base?.city) {
+    lines.push(`Based in: ${base.city}`);
+  } else if (base?.country) {
+    lines.push(`Based in: ${base.country.toUpperCase()}`);
+  }
 
   if (loc.relocation.open) {
     const reloc = geoList(loc.relocation.regions, loc.relocation.countries);
