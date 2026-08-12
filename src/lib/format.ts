@@ -5,7 +5,7 @@
  * same on phone and web. The client never re-validates; it only formats.
  */
 
-import type { Enrichment, Job } from './types';
+import type { Enrichment, Job, LocationPreferences } from './types';
 
 // --- Label maps (only codes whose label differs from the title-cased fallback) --
 
@@ -274,4 +274,50 @@ export function summaryFacets(job: Job): Facet[] {
   many('Domains', e.domains?.map((d) => label(DOMAIN_LABELS, d)));
 
   return facets;
+}
+
+// --- Profile location summary (for the Profile screen) ----------------------
+
+/** Region/country codes rendered as one comma-joined list: regions through the
+ *  regions label map, countries uppercased — the same convention `summaryFacets`
+ *  and the Filters screen use for each individually. */
+function geoList(regions: string[] | undefined, countries: string[] | undefined): string | null {
+  const parts = [
+    ...(regions ?? []).map((r) => label(REGION_LABELS, r)),
+    ...(countries ?? []).map((c) => c.toUpperCase()),
+  ];
+  return parts.length ? parts.join(', ') : null;
+}
+
+/**
+ * The Profile screen's read-only location summary: up to four lines (work
+ * modes, remote reach, base, relocation targets), each present only when the
+ * saved profile has data for it. `null` (no saved `location_preferences`)
+ * yields no lines. Relocation is included only when `relocation.open` is
+ * true — an unopened relocation block's regions/countries are a stale draft,
+ * not a stated preference (mirrors the web app's `buildLocationPreferences`
+ * gating).
+ */
+export function profileLocationSummary(loc: LocationPreferences | null): string[] {
+  if (!loc) return [];
+  const lines: string[] = [];
+
+  if (loc.work_modes?.length) {
+    lines.push(`Open to: ${loc.work_modes.map((m) => label(WORK_MODE_LABELS, m)).join(', ')}`);
+  }
+
+  const remote = geoList(loc.remote?.regions, loc.remote?.countries);
+  if (remote) lines.push(`Remote: ${remote}`);
+
+  const base = loc.base;
+  if (base?.city && base.country) lines.push(`Based in: ${base.city}, ${base.country.toUpperCase()}`);
+  else if (base?.city) lines.push(`Based in: ${base.city}`);
+  else if (base?.country) lines.push(`Based in: ${base.country.toUpperCase()}`);
+
+  if (loc.relocation.open) {
+    const reloc = geoList(loc.relocation.regions, loc.relocation.countries);
+    if (reloc) lines.push(`Open to relocation: ${reloc}`);
+  }
+
+  return lines;
 }
