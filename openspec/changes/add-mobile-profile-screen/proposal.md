@@ -20,7 +20,8 @@ button also add surface area to this screen without a clear owner right now.
   reach, base, relocation).
 - Add an empty-state message when the signed-in user has no saved profile
   yet, pointing to the web app to set one up (mobile has no
-  create/edit/delete profile UI in this change).
+  create/edit/delete profile UI in this change), and a distinct error-state
+  message when the profile fetch itself fails.
 - Remove the push-notification `Switch`, "Send test notification" button,
   and their handlers from this screen. `usePushNotifications` and the push
   API functions in `api.ts`/`push.ts` are left in place but become unused by
@@ -42,6 +43,8 @@ or push notifications yet)
 - `src/app/account.tsx` → `src/app/profile.tsx` (renamed, content changed)
 - `src/app/_layout.tsx` (route registration)
 - `src/app/index.tsx` (navigation target)
-- `src/lib/format.ts` (reused for facet labels, no changes expected)
+- `src/lib/format.ts` (existing facet-label helpers reused; new
+  `profileLocationSummary` formatter added, covered by new
+  `src/lib/format.test.ts`)
 - No API/backend changes — reuses `GET /api/v1/me/profile` via the existing
   `useProfile()` hook.

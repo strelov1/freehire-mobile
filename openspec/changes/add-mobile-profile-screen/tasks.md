@@ -20,3 +20,8 @@
 
 - [x] 4.1 Run `npm run lint`, `npx tsc --noEmit`, and `npm test` — all green.
 - [x] 4.2 Manually verify in the iOS simulator (via the `run` skill): a signed-in user with a saved profile sees specialization/skill chips and the expected location lines; a signed-in user with no saved profile sees the empty-state copy; the push switch and test-notification button are gone; Sign out still works; the account icon on the feed opens `/profile`.
+
+## 5. Profile fetch error state (post-review fix)
+
+- [x] 5.1 In `profile.tsx`, read `isError` from `useProfile()` and render a distinct error message ("Couldn't load your profile.") before the `profile === null` empty-state check, so a failed fetch is never shown as "No profile saved yet".
+- [x] 5.2 Run `npm run lint`, `npx tsc --noEmit`, and `npm test` — all green.

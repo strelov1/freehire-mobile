@@ -35,17 +35,20 @@ accordingly. Stays a modal.
      v)` (same helper `filters.tsx` uses for the category facet).
    - **Skills** — chips, raw skill tokens (same rendering as the Skills chips
      in `filters.tsx`).
-   - **Location** — a compact one/two-line summary built from
-     `profile.location_preferences`, skipping empty parts:
+   - **Location** — a compact summary of up to four lines built from
+     `profile.location_preferences`, one line per part, each independently
+     skipped when it has no data:
      - work modes: `facetValueLabel('work_mode', v)`, joined with ", "
      - remote reach: "Remote: <regions/countries>" (regions via
        `facetValueLabel('regions', v)`, countries uppercased)
      - base: "Based in: <country>, <city>" (whichever parts are present)
      - relocation: "Open to relocation: <regions/countries>" only when
        `relocation.open` is true
-   - **Empty state** (`profile === null`): "No profile saved yet" plus a note
-     that it can be set up on freehire.dev/my/profile — mobile stays
-     read-only for now.
+   - **Empty state** (`profile === null`, load succeeded): "No profile saved
+     yet" plus a note that it can be set up on freehire.dev/my/profile —
+     mobile stays read-only for now.
+   - **Error state** (`useProfile()` fails): a distinct "Couldn't load your
+     profile" message, so a failed fetch is never shown as the empty state.
    - **Loading state**: spinner while `useProfile()` is pending, matching the
      existing loading treatment already used for push devices.
 3. **Sign out** (unchanged).
@@ -64,8 +67,11 @@ all web-only for now.
 
 ## Testing
 
-No new API surface, so nothing to unit-test beyond the existing coverage.
-Manually verify in the iOS simulator: signed-in user with a saved profile
-sees specializations/skills/location chips; a signed-in user with no saved
-profile sees the empty-state copy; push toggle/test button are gone; Sign
-out still works; `npm run lint` and `npx tsc --noEmit` pass.
+No new API surface, but the location summary is new behavior-bearing logic:
+unit-test it (null input, each part independently present/absent, the
+`relocation.open` gate, fixed ordering) in `src/lib/format.test.ts`. Manually
+verify in the iOS simulator: signed-in user with a saved profile sees
+specializations/skills/location chips; a signed-in user with no saved
+profile sees the empty-state copy; a failed profile fetch shows the error
+state, not the empty state; push toggle/test button are gone; Sign out still
+works; `npm run lint`, `npx tsc --noEmit`, and `npm test` pass.
