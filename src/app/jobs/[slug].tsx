@@ -97,7 +97,7 @@ export default function JobDetailScreen() {
       <View style={styles.topBar}>
         <BackButton color={c.foreground} />
         <View style={styles.companyRow}>
-          <CompanyLogo name={job.company || '?'} size={48} />
+          <CompanyLogo name={job.company || '?'} size={32} />
           {job.company_slug ? (
             <Pressable
               onPress={() => router.push(`/companies/${job.company_slug}`)}
