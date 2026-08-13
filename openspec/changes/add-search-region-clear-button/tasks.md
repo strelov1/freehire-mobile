@@ -1,7 +1,7 @@
 ## 1. Region label helper (TDD, pure function)
 
-- [ ] 1.1 Write failing tests for a `regionShortcutLabel(selected: string[]): string` helper (new export in `src/lib/jobFilters.ts` or `src/lib/format.ts`): returns `"Region"` for `[]`, the single facet label for one value, and `` `${label} +${n-1}` `` for multiple values.
-- [ ] 1.2 Implement `regionShortcutLabel` using the existing `facetValueLabel('regions', code)` until tests pass.
+- [x] 1.1 Write failing tests for a `regionShortcutLabel(selected: string[]): string` helper (new export in `src/lib/jobFilters.ts` or `src/lib/format.ts`): returns `"Region"` for `[]`, the single facet label for one value, and `` `${label} +${n-1}` `` for multiple values.
+- [x] 1.2 Implement `regionShortcutLabel` using the existing `facetValueLabel('regions', code)` until tests pass.
 
 ## 2. Region shortcut button (`src/app/index.tsx`)
 
