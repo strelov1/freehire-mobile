@@ -235,15 +235,6 @@ export function facetValueLabel(param: string, value: string): string {
   return map ? label(map, value) : humanize(value);
 }
 
-/** The feed search bar's region shortcut button label: "Region" when nothing
- *  is selected, the region's own label for one, or that label plus a count of
- *  the rest for several (e.g. "Europe +1"). */
-export function regionShortcutLabel(selected: string[]): string {
-  if (selected.length === 0) return 'Region';
-  const first = facetValueLabel('regions', selected[0] as string);
-  if (selected.length === 1) return first;
-  return `${first} +${selected.length - 1}`;
-}
 
 /** A metadata row in the detail sidebar: one label with one or more values. */
 export type Facet = { label: string; values: string[] };

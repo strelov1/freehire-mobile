@@ -1,9 +1,10 @@
 import { Tabs, type BottomTabBarProps } from 'expo-router/tabs';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { getColors, Space } from '@/constants/freehire';
+import { getColors, Radius, Space } from '@/constants/freehire';
 import { useTabBarVisibility } from '@/lib/tabBarStore';
 import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
 import { useUnreadCount } from '@/lib/useNotifications';
@@ -15,17 +16,22 @@ const ROUTE_META: Record<string, { label: string; icon: SFSymbol; iconFilled: SF
   profile: { label: 'Profile', icon: 'person.crop.circle', iconFilled: 'person.crop.circle.fill' },
 };
 
+/** Width of the sliding active-tab indicator line. */
+const INDICATOR_WIDTH = 28;
+
 /**
  * The custom bottom tab bar: same tab-switching contract React Navigation
  * expects from a `tabBar` render prop, plus the scroll-driven slide animation
  * `TabBarVisibilityProvider` exposes. A custom bar (over the default
  * `tabBarStyle`) is what makes a smooth hide/show possible instead of a
- * layout-jumping `display` toggle.
+ * layout-jumping `display` toggle. Also draws a thin indicator line above
+ * the focused tab that slides between tabs on switch.
  */
 function AnimatedTabBar({ state, navigation, insets }: BottomTabBarProps) {
   const c = getColors(useColorScheme());
   const { hidden } = useTabBarVisibility();
   const { data: unreadCount = 0 } = useUnreadCount();
+  const [barWidth, setBarWidth] = useState(0);
 
   // The bar's real height includes the bottom safe-area inset; `hidden` is
   // normalized (0/1) since the shared value doesn't know that inset, so the
@@ -35,8 +41,20 @@ function AnimatedTabBar({ state, navigation, insets }: BottomTabBarProps) {
     transform: [{ translateY: hidden.value * barHeight }],
   }));
 
+  const tabWidth = barWidth / state.routes.length;
+  const indicatorX = useSharedValue(0);
+  useEffect(() => {
+    indicatorX.value = withTiming(state.index * tabWidth + (tabWidth - INDICATOR_WIDTH) / 2, {
+      duration: 200,
+    });
+  }, [state.index, tabWidth, indicatorX]);
+  const indicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: indicatorX.value }],
+  }));
+
   return (
     <Animated.View
+      onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
       style={[
         styles.bar,
         animatedStyle,
@@ -47,6 +65,11 @@ function AnimatedTabBar({ state, navigation, insets }: BottomTabBarProps) {
           borderTopColor: c.border,
         },
       ]}>
+      {barWidth > 0 ? (
+        <Animated.View
+          style={[styles.indicator, indicatorStyle, { backgroundColor: c.brandStrong }]}
+        />
+      ) : null}
       {state.routes.map((route, index) => {
         const meta = ROUTE_META[route.name];
         if (!meta) return null;
@@ -63,7 +86,7 @@ function AnimatedTabBar({ state, navigation, insets }: BottomTabBarProps) {
             accessibilityState={focused ? { selected: true } : {}}
             accessibilityLabel={meta.label}>
             <View>
-              <SymbolView name={focused ? meta.iconFilled : meta.icon} size={24} tintColor={tint} />
+              <SymbolView name={focused ? meta.iconFilled : meta.icon} size={21} tintColor={tint} />
               {badge != null ? (
                 <View style={[styles.badge, { backgroundColor: c.brand }]}>
                   <Text style={[styles.badgeText, { color: c.brandForeground }]}>{badge}</Text>
@@ -98,17 +121,24 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     flexDirection: 'row',
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  indicator: {
+    position: 'absolute',
+    top: 0,
+    width: INDICATOR_WIDTH,
+    height: 2,
+    borderRadius: Radius.pill,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
-    paddingTop: Space.sm,
+    gap: 1,
+    paddingTop: Space.xs,
   },
   label: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
   },
   badge: {

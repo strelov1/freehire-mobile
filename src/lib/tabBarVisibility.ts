@@ -7,7 +7,7 @@ const HIDE_DELTA = 8;
 /** The custom tab bar's fixed height (excludes the device's bottom safe
  *  area, which the bar adds on top of this). Shared so tab screens can pad
  *  their scrollable content to clear it. */
-export const TAB_BAR_HEIGHT = 64;
+export const TAB_BAR_HEIGHT = 52;
 
 /**
  * The tab bar's next hidden state given the current one, the scroll delta

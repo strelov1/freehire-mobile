@@ -1,4 +1,4 @@
-import { profileLocationSummary, regionShortcutLabel } from './format';
+import { profileLocationSummary } from './format';
 import type { LocationPreferences } from './types';
 
 describe('profileLocationSummary', () => {
@@ -66,20 +66,5 @@ describe('profileLocationSummary', () => {
       'Based in: Berlin, DE',
       'Open to relocation: US',
     ]);
-  });
-});
-
-describe('regionShortcutLabel', () => {
-  it('returns the generic label when no region is selected', () => {
-    expect(regionShortcutLabel([])).toBe('Region');
-  });
-
-  it('returns the region label when exactly one is selected', () => {
-    expect(regionShortcutLabel(['eu'])).toBe('Europe');
-  });
-
-  it('appends a +N count when more than one region is selected', () => {
-    expect(regionShortcutLabel(['eu', 'latam'])).toBe('Europe +1');
-    expect(regionShortcutLabel(['eu', 'latam', 'apac'])).toBe('Europe +2');
   });
 });

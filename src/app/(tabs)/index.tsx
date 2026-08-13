@@ -18,7 +18,6 @@ import { JobCard } from '@/components/JobCard';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useDismissedJobs } from '@/lib/useDismissedJobs';
 import { useFilters } from '@/lib/filterStore';
-import { regionShortcutLabel } from '@/lib/format';
 import { activeFilterCount, emptyFilters } from '@/lib/jobFilters';
 import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
 import { useTabBarVisibility } from '@/lib/tabBarStore';
@@ -77,9 +76,6 @@ export default function FeedScreen() {
               pressed && { opacity: 0.6 },
             ]}>
             <SymbolView name="globe" size={17} tintColor={regionTint} />
-            <Text numberOfLines={1} style={[styles.regionLabel, { color: regionTint }]}>
-              {regionShortcutLabel(selectedRegions)}
-            </Text>
           </Pressable>
           <SymbolView name="magnifyingglass" size={17} tintColor={c.mutedForeground} />
           <TextInput
@@ -244,17 +240,10 @@ const styles = StyleSheet.create({
   regionInInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     alignSelf: 'stretch',
-    maxWidth: 76,
     paddingRight: Space.sm,
     marginRight: Space.xs,
     borderRightWidth: 1,
-  },
-  regionLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    flexShrink: 1,
   },
   count: {
     fontSize: 13,
