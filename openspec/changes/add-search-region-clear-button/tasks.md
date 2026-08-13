@@ -62,3 +62,15 @@ the scroll-to-Region mechanism from section 3 is removed rather than reused.
       input.
 - [x] 6.9 Run unit tests, `tsc --noEmit`, `npm run lint`; simplify + review
       the diff.
+
+## 7. Revision — add Employment to `/filters/quick`
+
+- [x] 7.1 Extract `QUICK_FACET_PARAMS` into `src/lib/jobFilters.ts` (single
+      source of truth for `filters.tsx`'s exclusion filter and
+      `quick.tsx`'s inclusion filter) and add `employment_type` to it.
+- [x] 7.2 Update `quick.tsx`'s `clearAll()` to clear all `QUICK_FACET_PARAMS`
+      generically instead of naming `work_mode`/`regions` individually.
+- [x] 7.3 Retitle the quick screen "Quick filters" (was "Region & Work
+      format", no longer accurate with three facets).
+- [x] 7.4 Manually verify: `/filters/quick` shows Work format, Employment,
+      and Region; the main Filters screen no longer shows any of the three.
