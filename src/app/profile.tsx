@@ -37,7 +37,7 @@ function ChipRow({ c, values }: { c: ReturnType<typeof getColors>; values: strin
 export default function ProfileScreen() {
   const c = getColors(useColorScheme());
   const { user, signOut } = useAuth();
-  const { data: profile, isLoading: profileLoading } = useProfile();
+  const { data: profile, isLoading: profileLoading, isError: profileError } = useProfile();
   const [busy, setBusy] = useState(false);
 
   async function onSignOut() {
@@ -85,6 +85,9 @@ export default function ProfileScreen() {
           <Text style={[styles.sectionTitle, { color: c.foreground }]}>Profile</Text>
           {profileLoading ? (
             <ActivityIndicator color={c.mutedForeground} />
+          ) : profileError ? (
+            // Error red matches the auth modal's — there is no palette token for it.
+            <Text style={[styles.emptyText, { color: '#dc2626' }]}>{"Couldn't load your profile."}</Text>
           ) : profile ? (
             <View style={styles.profileBody}>
               <ChipRow c={c} values={profile.specializations.map((s) => facetValueLabel('category', s))} />

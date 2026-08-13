@@ -46,9 +46,13 @@ create/edit/delete-profile API wiring (`api.ts` only has `getProfile`).
   *viewing* the already-fetched profile.
 - **Reuse `useProfile()` and `facetValueLabel()` as-is**, no new API
   surface. `useProfile()` already gates on `!!user` and is already used by
-  `filters.tsx`, so the profile screen's behavior (loading/error/null states)
-  is consistent with the rest of the app instead of introducing a second data
-  path.
+  `filters.tsx`, so the profile screen's loading/null states are consistent
+  with the rest of the app instead of introducing a second data path.
+- **Distinguish a failed fetch from "no profile saved".** `useProfile()`'s
+  `isError` was initially left unhandled, which would show "No profile saved
+  yet" on a network failure — a false claim about the account's actual saved
+  state. The screen now renders a distinct error message when `isError` is
+  true, checked before the `profile === null` empty-state branch.
 - **Location rendered as a short derived summary, not a form.** The web
   page's location UI is a full preferences editor; the mobile screen instead
   computes 2-4 short lines (work modes / remote reach / base / relocation)

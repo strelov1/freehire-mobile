@@ -44,6 +44,16 @@ erroring.
 - **THEN** the screen shows a message that no profile is saved yet, pointing
   to the web app to set one up
 
+### Requirement: Profile fetch error state
+When the saved-profile fetch fails, the profile screen SHALL show a distinct
+error message instead of the no-profile empty state, so a failed load is
+never presented as "no profile saved".
+
+#### Scenario: Profile fetch fails
+- **WHEN** the signed-in user's saved-profile fetch fails
+- **THEN** the screen shows an error message distinct from the no-profile
+  empty-state copy
+
 ### Requirement: Profile data loading state
 While the saved profile is loading, the profile screen SHALL show a loading
 indicator in place of the chips/location summary/empty state.
