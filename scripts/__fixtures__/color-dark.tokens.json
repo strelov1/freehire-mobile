@@ -1,0 +1,8 @@
+{
+  "$description": "Fixture dark color tokens for sync-design-tokens tests.",
+  "$type": "color",
+  "background": { "$value": "oklch(0.16 0.006 110)" },
+  "foreground": { "$value": "#eeeeee" },
+  "ring": { "$value": "{brand-ring}" },
+  "brand-ring": { "$value": "oklch(0.6 0.09 118 / 50%)", "$description": "Oklch color with an alpha component." }
+}

@@ -1,0 +1,5 @@
+{
+  "$description": "Fixture with an unparseable color value, for error-path tests.",
+  "$type": "color",
+  "bogus": { "$value": "not-a-color", "$description": "Not a valid color format." }
+}

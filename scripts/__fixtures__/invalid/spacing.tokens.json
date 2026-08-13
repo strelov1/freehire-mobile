@@ -1,0 +1,5 @@
+{
+  "$description": "Minimal valid spacing tokens — not exercised by the error-path test.",
+  "$type": "dimension",
+  "spacing-0": { "$value": "0" }
+}

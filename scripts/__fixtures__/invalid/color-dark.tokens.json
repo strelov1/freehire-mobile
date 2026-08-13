@@ -1,0 +1,5 @@
+{
+  "$description": "Minimal valid dark color tokens — not exercised by the error-path test.",
+  "$type": "color",
+  "bogus": { "$value": "#000000" }
+}

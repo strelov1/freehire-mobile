@@ -1,0 +1,6 @@
+{
+  "$description": "Fixture spacing tokens for sync-design-tokens tests.",
+  "$type": "dimension",
+  "spacing-0": { "$value": "0", "$description": "No spacing." },
+  "spacing-4": { "$value": "1rem", "$description": "Plain rem dimension." }
+}

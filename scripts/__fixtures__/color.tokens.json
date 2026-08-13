@@ -1,0 +1,8 @@
+{
+  "$description": "Fixture color tokens for sync-design-tokens tests.",
+  "$type": "color",
+  "background": { "$value": "oklch(0.997 0.003 130)", "$description": "Opaque oklch color." },
+  "foreground": { "$value": "#111111", "$description": "Plain hex color, passes through unchanged." },
+  "ring": { "$value": "{brand-ring}", "$description": "Alias reference to brand-ring." },
+  "brand-ring": { "$value": "oklch(0.7 0.1 120)", "$description": "Target of the ring alias." }
+}

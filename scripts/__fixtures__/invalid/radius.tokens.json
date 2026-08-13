@@ -1,0 +1,5 @@
+{
+  "$description": "Minimal valid radius tokens — not exercised by the error-path test.",
+  "$type": "dimension",
+  "radius": { "$value": "0.625rem" }
+}
