@@ -21,22 +21,29 @@ selection (not any unsaved/staged edit).
   label followed by a count of the remaining selections, formatted as
   `<label> +N` (e.g. "Europe +1" for two selected regions)
 
-### Requirement: Region shortcut opens Filters scrolled to Region
-Tapping the region shortcut button SHALL navigate to the Filters screen and
-bring the Region facet section into view without the user manually
-scrolling, without performing any selection itself.
+### Requirement: Region shortcut opens a dedicated Region + Work format screen
+Tapping the region shortcut button SHALL navigate to a dedicated screen
+showing only the Region and Work format facets, without performing any
+selection itself. The main Filters screen SHALL NOT render Region or Work
+format — those facets live only on this dedicated screen.
 
 #### Scenario: Tapping the region shortcut
 - **WHEN** the user taps the region shortcut button on the feed
-- **THEN** the app navigates to the Filters screen
-- **AND** the Filters screen is scrolled so the Region section is visible
-  on open, without requiring manual scrolling
+- **THEN** the app navigates to a screen showing only Region and Work
+  format facet sections, with a staged-selection + "Show N jobs" footer
+  matching the main Filters screen's pattern
 
-#### Scenario: Opening Filters via the existing Filters button
-- **WHEN** the user opens the Filters screen via the existing trailing
-  Filters button (not the region shortcut)
-- **THEN** the Filters screen opens at its normal top scroll position,
-  unaffected by the region shortcut's scroll behavior
+#### Scenario: Applying from the dedicated screen
+- **WHEN** the user selects one or more Region/Work format values on the
+  dedicated screen and taps "Show N jobs"
+- **THEN** the selections are applied to the feed exactly as they would be
+  from the main Filters screen
+
+#### Scenario: Opening the main Filters screen
+- **WHEN** the user opens the main Filters screen via the existing trailing
+  Filters button
+- **THEN** the screen shows every facet except Region and Work format
+  (Employment, Seniority, Skills, Posted within, Country, Category)
 
 ### Requirement: Clear button for the feed search query
 The feed's search `TextInput` SHALL show a clear button whenever it

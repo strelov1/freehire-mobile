@@ -27,3 +27,38 @@
 - [x] 5.2 Run `npm run lint`.
 - [x] 5.3 Verify end-to-end in the iOS simulator against all scenarios in `specs/search-bar-quick-actions/spec.md`.
 - [x] 5.4 Run the `simplify` pass over the changed files, then request code review.
+
+## 6. Revision — dedicated Region + Work format screen (`/filters/quick`)
+
+Supersedes section 3: Region no longer renders inside `/filters` at all, so
+the scroll-to-Region mechanism from section 3 is removed rather than reused.
+
+- [ ] 6.1 Extract the `Chip` component and `useDebounced` hook out of
+      `src/app/filters.tsx` into shared modules (e.g.
+      `src/components/Chip.tsx`, `src/lib/useDebounced.ts`) so both `/filters`
+      and the new `/filters/quick` can use them without duplication.
+- [ ] 6.2 Create `src/app/filters/quick.tsx`: a full-screen modal mirroring
+      `/filters`'s staged-copy + `useFacetCounts` + Clear/Show-N-jobs footer
+      pattern, but rendering only the `work_mode` and `regions` entries from
+      `FACETS`.
+- [ ] 6.3 Register `Stack.Screen name="filters/quick"` with
+      `presentation: 'modal'` in `src/app/_layout.tsx`.
+- [ ] 6.4 In `src/app/filters.tsx`, render
+      `FACETS.filter(f => f.param !== 'work_mode' && f.param !== 'regions')`
+      instead of the full `FACETS` list.
+- [ ] 6.5 Remove the `focus` param handling, `regionY` state, `onLayout`, and
+      scroll-to-Region effect from `src/app/filters.tsx` (dead now that
+      Region isn't rendered there).
+- [ ] 6.6 In `src/app/index.tsx`, point the region shortcut button's
+      `onPress` at `router.push('/filters/quick')` instead of
+      `/filters?focus=regions`.
+- [ ] 6.7 Shrink the region shortcut button: `maxWidth` 100→76, label
+      `fontSize` 14→13, icon/label `gap` 5→4.
+- [ ] 6.8 Manually verify: tapping the region button opens `/filters/quick`
+      showing only Region + Work format; selecting values and tapping
+      "Show N jobs" applies them and updates the feed same as before; the
+      main `/filters` screen no longer shows Region or Work format sections;
+      the region button is visibly narrower and no longer crowds the search
+      input.
+- [ ] 6.9 Run unit tests, `tsc --noEmit`, `npm run lint`; simplify + review
+      the diff.
