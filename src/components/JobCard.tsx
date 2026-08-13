@@ -145,7 +145,7 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
         {/* Company + timestamp rail — a quiet eyebrow that yields to the title. */}
         <View style={styles.headerRow}>
           <View style={styles.companyGroup}>
-            <CompanyLogo name={job.company || '?'} size={40} />
+            <CompanyLogo name={job.company || '?'} size={28} />
             {job.company_slug ? (
               <Pressable
                 onPress={() => router.push(`/companies/${job.company_slug}`)}
