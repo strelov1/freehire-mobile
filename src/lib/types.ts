@@ -129,6 +129,60 @@ export type TestPushResult = {
   failed: number;
 };
 
+/** The lower-coverage extras stored in the company's `company_info` JSONB
+ *  (mirrors `hire/web`'s `CompanyInfo`, trimmed to what the read-only company
+ *  screen renders). Every field is optional — absent when the source didn't
+ *  provide it. */
+export type CompanyInfo = {
+  description?: string;
+  website?: string;
+  linkedin?: string;
+  yc_url?: string;
+  stage?: string;
+  top_company?: boolean;
+  is_hiring?: boolean;
+  funding?: {
+    type?: string;
+    amount?: number;
+    year?: number;
+    investors?: string[];
+  };
+  stock?: {
+    symbol?: string;
+    exchange?: string;
+  };
+  logo?: string;
+  homepage?: string;
+};
+
+/** A company, as returned by the company-detail endpoint (mirrors `hire/web`'s
+ *  `Company`, trimmed to what mobile's read-only company screen renders — no
+ *  `my_vote`/`collections`/directory-hierarchy fields since there's no voting
+ *  or collection UI here). */
+export type Company = {
+  slug: string;
+  name: string;
+  industries?: string[];
+  year_founded?: number | null;
+  employee_count?: number | null;
+  hq_country?: string | null;
+  organization_type?: string | null;
+  tagline?: string | null;
+  company_info?: CompanyInfo;
+  upvote_count: number;
+  downvote_count: number;
+  feedback_count: number;
+  feedback_rating_avg: number | null;
+};
+
+/** The company-detail endpoint's payload: the company plus its job list and
+ *  whether a referral is available for it. */
+export type CompanyPage = {
+  company: Company;
+  jobs: Job[];
+  referral_available: boolean;
+};
+
 /** The list envelope every paginated read returns. */
 export type Page<T> = {
   data: T[];

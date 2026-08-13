@@ -47,10 +47,21 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
       {/* Company + timestamp rail — a quiet eyebrow that yields to the title. */}
       <View style={styles.headerRow}>
         <View style={styles.companyGroup}>
-          <CompanyLogo name={job.company || '?'} size={28} />
-          <Text numberOfLines={1} style={[styles.company, { color: c.mutedForeground }]}>
-            {job.company || 'Unknown company'}
-          </Text>
+          <CompanyLogo name={job.company || '?'} size={40} />
+          {job.company_slug ? (
+            <Pressable
+              onPress={() => router.push(`/companies/${job.company_slug}`)}
+              hitSlop={4}
+              style={styles.companyTextWrap}>
+              <Text numberOfLines={1} style={[styles.company, { color: c.mutedForeground }]}>
+                {job.company || 'Unknown company'}
+              </Text>
+            </Pressable>
+          ) : (
+            <Text numberOfLines={1} style={[styles.company, { color: c.mutedForeground }]}>
+              {job.company || 'Unknown company'}
+            </Text>
+          )}
         </View>
         {posted ? (
           <Text style={[styles.posted, { color: c.mutedForeground }]}>{posted}</Text>
@@ -124,6 +135,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Space.sm,
+  },
+  companyTextWrap: {
+    flexShrink: 1,
   },
   company: {
     flexShrink: 1,

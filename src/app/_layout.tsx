@@ -86,6 +86,9 @@ export default function RootLayout() {
               {/* No native header — the detail screen draws its own compact back
                   chevron so the empty header bar never eats vertical space. */}
               <Stack.Screen name="jobs/[slug]" options={{ headerShown: false }} />
+              {/* Same no-native-header treatment as jobs/[slug] — this screen
+                  draws its own compact back chevron too. */}
+              <Stack.Screen name="companies/[slug]" options={{ headerShown: false }} />
               {/* Filters, auth, profile, and notifications all present as modals
                   over the feed. */}
               <Stack.Screen name="filters" options={{ headerShown: false, presentation: 'modal' }} />

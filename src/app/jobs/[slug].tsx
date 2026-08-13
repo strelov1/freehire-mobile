@@ -97,10 +97,21 @@ export default function JobDetailScreen() {
       <View style={styles.topBar}>
         <BackButton color={c.foreground} />
         <View style={styles.companyRow}>
-          <CompanyLogo name={job.company || '?'} size={26} />
-          <Text numberOfLines={1} style={[styles.company, { color: c.mutedForeground }]}>
-            {job.company || 'Unknown company'}
-          </Text>
+          <CompanyLogo name={job.company || '?'} size={48} />
+          {job.company_slug ? (
+            <Pressable
+              onPress={() => router.push(`/companies/${job.company_slug}`)}
+              hitSlop={4}
+              style={styles.companyTextWrap}>
+              <Text numberOfLines={1} style={[styles.company, { color: c.mutedForeground }]}>
+                {job.company || 'Unknown company'}
+              </Text>
+            </Pressable>
+          ) : (
+            <Text numberOfLines={1} style={[styles.company, { color: c.mutedForeground }]}>
+              {job.company || 'Unknown company'}
+            </Text>
+          )}
         </View>
         <SaveButton slug={job.public_slug} size={24} />
       </View>
@@ -235,6 +246,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Space.sm,
+  },
+  companyTextWrap: {
+    flexShrink: 1,
   },
   company: {
     flexShrink: 1,

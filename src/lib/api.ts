@@ -6,6 +6,7 @@
  */
 
 import type {
+  CompanyPage,
   FacetCounts,
   Job,
   NotificationItem,
@@ -292,5 +293,26 @@ export async function facetCounts(query: string): Promise<FacetCounts> {
  */
 export async function getJob(slug: string): Promise<Job> {
   const { data } = await getJSON<{ data: Job }>(`/api/v1/jobs/${slug}`);
+  return data;
+}
+
+/**
+ * A company by its slug, for the company screen: the company's own fields plus
+ * its job list and referral availability. `limit`/`offset` page that job list;
+ * omitted, the backend applies its own default. Public, unauthenticated read —
+ * same shape as `hire/web`'s `client.getCompany`.
+ */
+export async function getCompany(
+  slug: string,
+  limit?: number,
+  offset?: number,
+): Promise<CompanyPage> {
+  const params = new URLSearchParams();
+  if (limit != null) params.set('limit', String(limit));
+  if (offset != null) params.set('offset', String(offset));
+  const qs = params.toString();
+  const { data } = await getJSON<{ data: CompanyPage }>(
+    `/api/v1/companies/${slug}${qs ? `?${qs}` : ''}`,
+  );
   return data;
 }

@@ -5,7 +5,7 @@
  * same on phone and web. The client never re-validates; it only formats.
  */
 
-import type { Enrichment, Job, LocationPreferences } from './types';
+import type { Company, Enrichment, Job, LocationPreferences } from './types';
 
 // --- Label maps (only codes whose label differs from the title-cased fallback) --
 
@@ -274,6 +274,49 @@ export function summaryFacets(job: Job): Facet[] {
   many('Domains', e.domains?.map((d) => label(DOMAIN_LABELS, d)));
 
   return facets;
+}
+
+/**
+ * The company screen's facts list: same `label` + `values` shape as
+ * `summaryFacets`, so the screen can reuse its facet-row rendering. Absent
+ * fields are skipped, same convention as `summaryFacets`.
+ */
+export function companyFacts(company: Company): Facet[] {
+  const info = company.company_info ?? {};
+  const facts: Facet[] = [];
+
+  const one = (name: string, text: string | null | undefined) => {
+    if (text) facts.push({ label: name, values: [text] });
+  };
+
+  if (company.industries?.length) facts.push({ label: 'Industries', values: company.industries });
+  one('Founded', company.year_founded ? String(company.year_founded) : null);
+  one('Employees', company.employee_count ? String(company.employee_count) : null);
+  one('HQ', company.hq_country);
+  one('Type', company.organization_type);
+  one('Stage', info.stage);
+  if (info.funding?.type || info.funding?.amount) {
+    const amount = info.funding.amount ? `$${info.funding.amount.toLocaleString()}` : null;
+    facts.push({ label: 'Funding', values: [info.funding.type, amount].filter((v): v is string => !!v) });
+  }
+  if (info.stock?.symbol) {
+    facts.push({
+      label: 'Stock',
+      values: [info.stock.symbol, info.stock.exchange].filter((v): v is string => !!v),
+    });
+  }
+
+  return facts;
+}
+
+/** The company screen's rating line, e.g. "4.5 (12 reviews)" — the screen
+ *  pairs this with a star icon rather than a text glyph. Null when there's no
+ *  feedback yet (feedback_rating_avg is null while feedback_count is 0, per
+ *  the server). */
+export function companyRating(company: Company): string | null {
+  if (company.feedback_count === 0 || company.feedback_rating_avg == null) return null;
+  const reviews = company.feedback_count === 1 ? 'review' : 'reviews';
+  return `${company.feedback_rating_avg.toFixed(1)} (${company.feedback_count} ${reviews})`;
 }
 
 // --- Profile location summary (for the Profile screen) ----------------------
