@@ -4,6 +4,11 @@ const TOP_THRESHOLD = 40;
 /** Minimum downward delta before hiding — filters out small bounces/jitter. */
 const HIDE_DELTA = 8;
 
+/** The custom tab bar's fixed height (excludes the device's bottom safe
+ *  area, which the bar adds on top of this). Shared so tab screens can pad
+ *  their scrollable content to clear it. */
+export const TAB_BAR_HEIGHT = 64;
+
 /**
  * The tab bar's next hidden state given the current one, the scroll delta
  * since the last event (positive = down), and the current scroll offset.

@@ -11,6 +11,7 @@ import { getColors } from '@/constants/freehire';
 import { AuthProvider } from '@/lib/authStore';
 import { FilterProvider } from '@/lib/filterStore';
 import { jobSlugFromResponse } from '@/lib/push';
+import { TabBarVisibilityProvider } from '@/lib/tabBarStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -79,35 +80,36 @@ export default function RootLayout() {
               detail, and the auth/filters modals) shares one source of truth. */}
           <AuthProvider>
             <FilterProvider>
-              <Stack
-                screenOptions={{
-                  headerStyle: { backgroundColor: c.background },
-                  headerTintColor: c.brandStrong,
-                  headerTitleStyle: { color: c.foreground },
-                  contentStyle: { backgroundColor: c.background },
-                }}>
-                {/* The feed is the app's single root screen (no bottom tab bar). */}
-                <Stack.Screen name="index" options={{ headerShown: false }} />
-                {/* No native header — the detail screen draws its own compact back
-                    chevron so the empty header bar never eats vertical space. */}
-                <Stack.Screen name="jobs/[slug]" options={{ headerShown: false }} />
-                {/* Same no-native-header treatment as jobs/[slug] — this screen
-                    draws its own compact back chevron too. */}
-                <Stack.Screen name="companies/[slug]" options={{ headerShown: false }} />
-                {/* Filters, auth, profile, and notifications all present as modals
-                    over the feed. */}
-                <Stack.Screen name="filters" options={{ headerShown: false, presentation: 'modal' }} />
-                {/* Region + Work format only — reached via the feed search
-                    bar's region shortcut, distinct from the full Filters
-                    modal above. */}
-                <Stack.Screen name="filters/quick" options={{ headerShown: false, presentation: 'modal' }} />
-                <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'modal' }} />
-                <Stack.Screen name="profile" options={{ headerShown: false, presentation: 'modal' }} />
-                <Stack.Screen name="notifications" options={{ headerShown: false, presentation: 'modal' }} />
-                {/* A multi-job digest's own matched-jobs list, pushed within that
-                    modal — no native header, same reasoning as jobs/[slug]. */}
-                <Stack.Screen name="notifications/[id]" options={{ headerShown: false }} />
-              </Stack>
+              <TabBarVisibilityProvider>
+                <Stack
+                  screenOptions={{
+                    headerStyle: { backgroundColor: c.background },
+                    headerTintColor: c.brandStrong,
+                    headerTitleStyle: { color: c.foreground },
+                    contentStyle: { backgroundColor: c.background },
+                  }}>
+                  {/* The 4-tab bottom nav (Jobs/Companies/Notifications/Profile)
+                      is the app's root — see (tabs)/_layout.tsx. */}
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  {/* No native header — the detail screen draws its own compact back
+                      chevron so the empty header bar never eats vertical space. */}
+                  <Stack.Screen name="jobs/[slug]" options={{ headerShown: false }} />
+                  {/* Same no-native-header treatment as jobs/[slug] — this screen
+                      draws its own compact back chevron too. */}
+                  <Stack.Screen name="companies/[slug]" options={{ headerShown: false }} />
+                  {/* Filters and auth present as modals over the tab bar. */}
+                  <Stack.Screen name="filters" options={{ headerShown: false, presentation: 'modal' }} />
+                  {/* Region + Work format only — reached via the feed search
+                      bar's region shortcut, distinct from the full Filters
+                      modal above. */}
+                  <Stack.Screen name="filters/quick" options={{ headerShown: false, presentation: 'modal' }} />
+                  <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'modal' }} />
+                  {/* A multi-job digest's own matched-jobs list, pushed from the
+                      Notifications tab — no native header, same reasoning as
+                      jobs/[slug]. */}
+                  <Stack.Screen name="notifications/[id]" options={{ headerShown: false }} />
+                </Stack>
+              </TabBarVisibilityProvider>
             </FilterProvider>
           </AuthProvider>
         </ThemeProvider>
