@@ -19,10 +19,11 @@ const QUICK_FACETS = FACETS.filter((f) => QUICK_FACET_PARAMS.includes(f.param));
 const EMPTY_FACETS: Record<string, Record<string, number>> = {};
 
 /**
- * Region + Work format only — a lighter sibling of the full Filters screen,
- * reached from the feed's region shortcut button. Same staged-copy +
- * live-count + "Show N jobs" pattern as `/filters`, scoped to two facets so
- * it opens straight to what the shortcut promised instead of a full list.
+ * A lighter sibling of the full Filters screen, scoped to `QUICK_FACET_PARAMS`
+ * (Work format, Employment, Region) and reached from the feed's region
+ * shortcut button. Same staged-copy + live-count + "Show N jobs" pattern as
+ * `/filters`, just opening straight to what the shortcut promised instead of
+ * a full list.
  */
 export default function QuickFiltersScreen() {
   const c = getColors(useColorScheme());

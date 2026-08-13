@@ -65,54 +65,52 @@ export default function FeedScreen() {
   // Notifications and profile live in the bottom tab bar, not this header.
   const top = (
     <View style={styles.top}>
-      <View style={styles.searchRow}>
-        <View style={[styles.search, { backgroundColor: c.card, borderColor: c.border }]}>
-          <Pressable
-            onPress={() => router.push('/filters/quick')}
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.regionInInput,
-              { borderRightColor: c.border },
-              pressed && { opacity: 0.6 },
-            ]}>
-            <SymbolView name="globe" size={17} tintColor={regionTint} />
+      <View style={[styles.search, { backgroundColor: c.card, borderColor: c.border }]}>
+        <Pressable
+          onPress={() => router.push('/filters/quick')}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.regionInInput,
+            { borderRightColor: c.border },
+            pressed && { opacity: 0.6 },
+          ]}>
+          <SymbolView name="globe" size={17} tintColor={regionTint} />
+        </Pressable>
+        <SymbolView name="magnifyingglass" size={17} tintColor={c.mutedForeground} />
+        <TextInput
+          value={filters.q}
+          onChangeText={setQuery}
+          placeholder="Search jobs…"
+          placeholderTextColor={c.mutedForeground}
+          style={[styles.searchInput, { color: c.foreground }]}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+        />
+        {filters.q.length > 0 ? (
+          <Pressable onPress={() => setQuery('')} hitSlop={8}>
+            <SymbolView name="xmark.circle.fill" size={16} tintColor={c.mutedForeground} />
           </Pressable>
-          <SymbolView name="magnifyingglass" size={17} tintColor={c.mutedForeground} />
-          <TextInput
-            value={filters.q}
-            onChangeText={setQuery}
-            placeholder="Search jobs…"
-            placeholderTextColor={c.mutedForeground}
-            style={[styles.searchInput, { color: c.foreground }]}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
+        ) : null}
+        <Pressable
+          onPress={() => router.push('/filters')}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.filtersInInput,
+            { borderLeftColor: c.border },
+            pressed && { opacity: 0.6 },
+          ]}>
+          <SymbolView
+            name="slider.horizontal.3"
+            size={18}
+            tintColor={activeCount > 0 ? c.brandStrong : c.foreground}
           />
-          {filters.q.length > 0 ? (
-            <Pressable onPress={() => setQuery('')} hitSlop={8}>
-              <SymbolView name="xmark.circle.fill" size={16} tintColor={c.mutedForeground} />
-            </Pressable>
+          {activeCount > 0 ? (
+            <View style={[styles.badge, { backgroundColor: c.brand }]}>
+              <Text style={[styles.badgeText, { color: c.brandForeground }]}>{activeCount}</Text>
+            </View>
           ) : null}
-          <Pressable
-            onPress={() => router.push('/filters')}
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.filtersInInput,
-              { borderLeftColor: c.border },
-              pressed && { opacity: 0.6 },
-            ]}>
-            <SymbolView
-              name="slider.horizontal.3"
-              size={18}
-              tintColor={activeCount > 0 ? c.brandStrong : c.foreground}
-            />
-            {activeCount > 0 ? (
-              <View style={[styles.badge, { backgroundColor: c.brand }]}>
-                <Text style={[styles.badgeText, { color: c.brandForeground }]}>{activeCount}</Text>
-              </View>
-            ) : null}
-          </Pressable>
-        </View>
+        </Pressable>
       </View>
       {total > 0 ? (
         <Text style={[styles.count, { color: c.mutedForeground }]}>
@@ -207,13 +205,7 @@ const styles = StyleSheet.create({
     paddingBottom: Space.sm,
     gap: Space.sm,
   },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Space.sm,
-  },
   search: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Space.sm,
