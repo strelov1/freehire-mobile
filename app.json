@@ -12,7 +12,10 @@
         "light": "./assets/images/freehire-icon-light.png",
         "dark": "./assets/images/freehire-icon-dark.png"
       },
-      "bundleIdentifier": "me.freehire.mobile"
+      "bundleIdentifier": "me.freehire.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "me.freehire.mobile",

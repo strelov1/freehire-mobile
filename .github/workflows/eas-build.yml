@@ -27,6 +27,22 @@ on:
           Groups) — this workflow doesn't create it.
         type: string
         default: testers
+      submit-ios:
+        description: >-
+          Submit the iOS build to App Store Connect / TestFlight once it
+          finishes (blocks the job until the build completes). Requires an
+          App Store Connect API Key already configured via `eas credentials
+          -p ios` (see eas.json's submit.production.ios) — this workflow
+          can't set that up. No-op when platform is "android".
+        type: boolean
+        default: false
+      testflight-group:
+        description: >-
+          Internal TestFlight group to add the build to. Leave empty to
+          submit without assigning a group (assign manually in App Store
+          Connect afterward).
+        type: string
+        default: ""
 
 jobs:
   build:
@@ -55,17 +71,19 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      # Firebase distribution needs the finished build's artifact URL, so it
-      # can't stay fire-and-forget (--no-wait) — only wait, and emit JSON,
-      # when distribution was actually requested. The plain dispatch path
-      # (distribute-android: false, the default) is unchanged.
+      # Firebase distribution / TestFlight submission both need the finished
+      # build's artifact (URL for Firebase, build ID for `eas submit`), so
+      # the dispatch can't stay fire-and-forget (--no-wait) when either was
+      # requested — only then do we wait and emit --json. The plain dispatch
+      # path (both flags false, the default) is unchanged.
       - name: Build
         env:
           PLATFORM: ${{ inputs.platform }}
           PROFILE: ${{ inputs.profile }}
           DISTRIBUTE_ANDROID: ${{ inputs.distribute-android }}
+          SUBMIT_IOS: ${{ inputs.submit-ios }}
         run: |
-          if [ "$DISTRIBUTE_ANDROID" = "true" ]; then
+          if [ "$DISTRIBUTE_ANDROID" = "true" ] || [ "$SUBMIT_IOS" = "true" ]; then
             eas build --platform "$PLATFORM" --profile "$PROFILE" --non-interactive --json --no-wait=false > build-output.json
           else
             eas build --platform "$PLATFORM" --profile "$PROFILE" --non-interactive --no-wait
@@ -105,3 +123,28 @@ jobs:
             --release-notes "EAS $PROFILE build — $GITHUB_SHA"
 
           rm -f /tmp/firebase-sa.json
+
+      # eas.json's submit.production.ios has the Apple Team ID; the App Store
+      # Connect API Key itself must already be stored on EAS via
+      # `eas credentials -p ios` (run locally, interactively, once — it can't
+      # be scripted from CI since it needs the key generated in App Store
+      # Connect). Once that's done, EXPO_TOKEN alone is enough here, same as
+      # how production Android's keystore is already EAS-remote-managed.
+      - name: Submit iOS build to TestFlight
+        if: ${{ inputs.submit-ios && (inputs.platform == 'ios' || inputs.platform == 'all') }}
+        env:
+          PROFILE: ${{ inputs.profile }}
+          TESTFLIGHT_GROUP: ${{ inputs.testflight-group }}
+        run: |
+          BUILD_ID=$(jq -r '[.[] | select(.platform == "IOS")][0].id // empty' build-output.json)
+          if [ -z "$BUILD_ID" ]; then
+            echo "::error::No iOS build id found in build-output.json" >&2
+            cat build-output.json >&2
+            exit 1
+          fi
+
+          if [ -n "$TESTFLIGHT_GROUP" ]; then
+            eas submit --platform ios --profile "$PROFILE" --id "$BUILD_ID" --groups "$TESTFLIGHT_GROUP" --non-interactive
+          else
+            eas submit --platform ios --profile "$PROFILE" --id "$BUILD_ID" --non-interactive
+          fi
