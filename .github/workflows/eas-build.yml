@@ -13,6 +13,20 @@ on:
         type: choice
         options: [development, preview, production]
         required: true
+      distribute-android:
+        description: >-
+          Distribute the Android build to Firebase App Distribution once it
+          finishes (blocks the job until the build completes, instead of the
+          usual fire-and-forget dispatch). No-op when platform is "ios".
+        type: boolean
+        default: false
+      testers-group:
+        description: >-
+          Firebase App Distribution tester group to notify. Must already
+          exist in the Firebase console (App Distribution → Testers &
+          Groups) — this workflow doesn't create it.
+        type: string
+        default: testers
 
 jobs:
   build:
@@ -41,8 +55,53 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      # Firebase distribution needs the finished build's artifact URL, so it
+      # can't stay fire-and-forget (--no-wait) — only wait, and emit JSON,
+      # when distribution was actually requested. The plain dispatch path
+      # (distribute-android: false, the default) is unchanged.
       - name: Build
         env:
           PLATFORM: ${{ inputs.platform }}
           PROFILE: ${{ inputs.profile }}
-        run: eas build --platform "$PLATFORM" --profile "$PROFILE" --non-interactive --no-wait
+          DISTRIBUTE_ANDROID: ${{ inputs.distribute-android }}
+        run: |
+          if [ "$DISTRIBUTE_ANDROID" = "true" ]; then
+            eas build --platform "$PLATFORM" --profile "$PROFILE" --non-interactive --json --no-wait=false > build-output.json
+          else
+            eas build --platform "$PLATFORM" --profile "$PROFILE" --non-interactive --no-wait
+          fi
+
+      # Firebase project: freehire-mobile (created for this app specifically;
+      # Android app me.freehire.mobile). Auth is a CI-only service account
+      # (firebase-appdistribution-ci@freehire-mobile.iam.gserviceaccount.com,
+      # role roles/firebaseappdistro.admin) stored as the
+      # FIREBASE_SERVICE_ACCOUNT_JSON repo secret. Manually verified end to
+      # end (service account auth, tester add, APK upload + distribute) with
+      # an existing EAS build artifact before wiring this into CI — the jq
+      # filter below matches the real `eas build --json` shape (an array of
+      # build objects with `.platform` and `.artifacts.buildUrl`).
+      - name: Distribute Android build to Firebase App Distribution
+        if: ${{ inputs.distribute-android && (inputs.platform == 'android' || inputs.platform == 'all') }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_APP_ID: "1:752171182958:android:fa4495f4e8a547bef26f7f"
+          TESTERS_GROUP: ${{ inputs.testers-group }}
+          PROFILE: ${{ inputs.profile }}
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT_JSON" > /tmp/firebase-sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
+
+          BUILD_URL=$(jq -r '[.[] | select(.platform == "ANDROID")][0].artifacts.buildUrl // empty' build-output.json)
+          if [ -z "$BUILD_URL" ]; then
+            echo "::error::No Android build artifact URL found in build-output.json" >&2
+            cat build-output.json >&2
+            exit 1
+          fi
+
+          curl -sL -o app-release.apk "$BUILD_URL"
+          npx --yes firebase-tools appdistribution:distribute app-release.apk \
+            --app "$FIREBASE_APP_ID" \
+            --groups "$TESTERS_GROUP" \
+            --release-notes "EAS $PROFILE build — $GITHUB_SHA"
+
+          rm -f /tmp/firebase-sa.json
