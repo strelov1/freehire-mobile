@@ -72,7 +72,7 @@ export default function FeedScreen() {
       <View style={styles.searchRow}>
         <View style={[styles.search, { backgroundColor: c.card, borderColor: c.border }]}>
           <Pressable
-            onPress={() => router.push('/filters?focus=regions')}
+            onPress={() => router.push('/filters/quick')}
             hitSlop={8}
             style={({ pressed }) => [
               styles.regionInInput,
@@ -288,15 +288,15 @@ const styles = StyleSheet.create({
   regionInInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     alignSelf: 'stretch',
-    maxWidth: 100,
+    maxWidth: 76,
     paddingRight: Space.sm,
     marginRight: Space.xs,
     borderRightWidth: 1,
   },
   regionLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     flexShrink: 1,
   },

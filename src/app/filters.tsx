@@ -1,6 +1,6 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Chip } from '@/components/Chip';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useAuth } from '@/lib/authStore';
 import { useFilters } from '@/lib/filterStore';
@@ -27,6 +28,7 @@ import {
   toggleValue,
   type JobFilters,
 } from '@/lib/jobFilters';
+import { useDebounced } from '@/lib/useDebounced';
 import { useFacetCounts } from '@/lib/useJobSearch';
 import { useProfile } from '@/lib/useProfile';
 
@@ -36,16 +38,6 @@ const MAX_SKILLS = 30;
 // Stable reference so the `countries` useMemo below doesn't invalidate every
 // render while `counts` is still loading.
 const EMPTY_FACETS: Record<string, Record<string, number>> = {};
-
-/** Debounce a value so rapid staging taps don't refetch counts on every tap. */
-function useDebounced<T>(value: T, ms: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return debounced;
-}
 
 /**
  * The Filters screen — a full-screen modal that edits a STAGED copy of the
@@ -60,26 +52,11 @@ export default function FiltersScreen() {
   const { filters, apply } = useFilters();
   const { user } = useAuth();
   const { data: profile, isLoading: profileLoading } = useProfile();
-  const { focus } = useLocalSearchParams<{ focus?: string }>();
 
   // Seed once from the live filters; edits stay local until "Show N jobs".
   const [staged, setStaged] = useState<JobFilters>(() => filters);
   const [countryQuery, setCountryQuery] = useState('');
   const [skillQuery, setSkillQuery] = useState('');
-
-  // Opened via the feed's region shortcut (?focus=regions): scroll the Region
-  // section into view once, as soon as both its layout and the intent to
-  // focus it are known. Guarded so it fires at most once per mount, not on
-  // every re-layout (e.g. when facet counts arrive).
-  const scrollRef = useRef<ScrollView>(null);
-  const [regionY, setRegionY] = useState<number | null>(null);
-  const hasScrolledToRegionRef = useRef(false);
-  useEffect(() => {
-    if (hasScrolledToRegionRef.current) return;
-    if (focus !== 'regions' || regionY == null) return;
-    hasScrolledToRegionRef.current = true;
-    scrollRef.current?.scrollTo({ y: regionY, animated: true });
-  }, [focus, regionY]);
 
   const stagedQuery = useMemo(() => filtersToQuery(staged), [staged]);
   const debouncedQuery = useDebounced(stagedQuery, 250);
@@ -176,16 +153,11 @@ export default function FiltersScreen() {
         </View>
       </View>
 
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardDismissMode="on-drag">
-        {FACETS.map((facet) => (
-          <View
-            key={facet.param}
-            style={styles.section}
-            onLayout={
-              facet.param === 'regions'
-                ? (e) => setRegionY(e.nativeEvent.layout.y)
-                : undefined
-            }>
+      <ScrollView contentContainerStyle={styles.content} keyboardDismissMode="on-drag">
+        {/* Region and Work format live on the dedicated /filters/quick screen
+            (reached via the feed's region shortcut), not here. */}
+        {FACETS.filter((f) => f.param !== 'work_mode' && f.param !== 'regions').map((facet) => (
+          <View key={facet.param} style={styles.section}>
             <Text style={[styles.sectionLabel, { color: c.foreground }]}>{facet.label}</Text>
             <View style={styles.chips}>
               {facet.values.map((value) => {
@@ -326,42 +298,6 @@ export default function FiltersScreen() {
         </Pressable>
       </View>
     </SafeAreaView>
-  );
-}
-
-function Chip({
-  label,
-  count,
-  selected,
-  colors,
-  onPress,
-}: {
-  label: string;
-  count?: number;
-  selected: boolean;
-  colors: ReturnType<typeof getColors>;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.chip,
-        selected
-          ? { backgroundColor: colors.brandMuted, borderColor: colors.brand }
-          : { backgroundColor: colors.card, borderColor: colors.border },
-        pressed && { opacity: 0.7 },
-      ]}>
-      <Text
-        style={[styles.chipText, { color: selected ? colors.brandStrong : colors.foreground }]}>
-        {label}
-      </Text>
-      {count != null ? (
-        <Text style={[styles.chipCount, { color: selected ? colors.brandStrong : colors.mutedForeground }]}>
-          {count.toLocaleString('en-US')}
-        </Text>
-      ) : null}
-    </Pressable>
   );
 }
 

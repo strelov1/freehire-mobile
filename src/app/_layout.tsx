@@ -97,6 +97,10 @@ export default function RootLayout() {
                 {/* Filters, auth, profile, and notifications all present as modals
                     over the feed. */}
                 <Stack.Screen name="filters" options={{ headerShown: false, presentation: 'modal' }} />
+                {/* Region + Work format only — reached via the feed search
+                    bar's region shortcut, distinct from the full Filters
+                    modal above. */}
+                <Stack.Screen name="filters/quick" options={{ headerShown: false, presentation: 'modal' }} />
                 <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'modal' }} />
                 <Stack.Screen name="profile" options={{ headerShown: false, presentation: 'modal' }} />
                 <Stack.Screen name="notifications" options={{ headerShown: false, presentation: 'modal' }} />
