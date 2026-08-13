@@ -21,6 +21,7 @@ import {
   buildRadius,
   loadTokens,
   syncTokens,
+  generateFileContent,
 } from './sync-design-tokens.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -120,6 +121,14 @@ test('resolveAliases throws on a reference to an unknown token', () => {
   assert.throws(() => resolveAliases(raw, 'fixture.tokens.json'), TokenSyncError);
 });
 
+test('resolveAliases rejects a chained alias rather than resolving it multi-hop', () => {
+  const raw = { a: '{b}', b: '{c}', c: 'oklch(0.5 0.1 100)' };
+  assert.throws(
+    () => resolveAliases(raw, 'fixture.tokens.json'),
+    (err) => err instanceof TokenSyncError && /chained/.test(err.message),
+  );
+});
+
 // ---- buildPalette / buildSpacing / buildRadius over fixtures ----
 
 function readFixture(name) {
@@ -165,6 +174,30 @@ test('buildPalette error messages name the offending token and file', () => {
   );
 });
 
+test('buildPalette wraps a non-TokenSyncError failure (e.g. a missing $value) with file and token context', () => {
+  const raw = { foo: undefined };
+  assert.throws(
+    () => buildPalette(raw, 'color.tokens.json'),
+    (err) => err instanceof TokenSyncError && /foo/.test(err.message) && /color\.tokens\.json/.test(err.message),
+  );
+});
+
+test('buildSpacing error messages name the offending token and file', () => {
+  const raw = { 'spacing-4': '10px' };
+  assert.throws(
+    () => buildSpacing(raw, 'spacing.tokens.json'),
+    (err) => err instanceof TokenSyncError && /spacing-4/.test(err.message) && /spacing\.tokens\.json/.test(err.message),
+  );
+});
+
+test('buildRadius error messages name the offending token and file', () => {
+  const raw = { 'radius-sm': '10px' };
+  assert.throws(
+    () => buildRadius(raw, 'radius.tokens.json'),
+    (err) => err instanceof TokenSyncError && /radius-sm/.test(err.message) && /radius\.tokens\.json/.test(err.message),
+  );
+});
+
 // ---- source reading ----
 
 test('loadTokens throws a clear error when the tokens directory is missing', () => {
@@ -180,6 +213,14 @@ test('loadTokens reads all four token files from a valid directory', () => {
   assert.ok(colorDark.background);
   assert.ok(spacing['spacing-4']);
   assert.ok(radius.radius);
+});
+
+test('loadTokens throws a clear error naming the file when a token file has malformed JSON', () => {
+  const dir = join(__dirname, '__fixtures__', 'malformed-json');
+  assert.throws(
+    () => loadTokens(dir),
+    (err) => err instanceof TokenSyncError && /color\.tokens\.json/.test(err.message),
+  );
 });
 
 // ---- end-to-end generation ----
@@ -204,6 +245,26 @@ test('syncTokens generates a TS file with header, palettes, spacing, and radius 
   // Spot-check a spacing and a radius value.
   assert.match(content, /"4":\s*16/);
   assert.match(content, /"sm":\s*6/);
+});
+
+test('generateFileContent accepts light/dark palettes with the same keys in a different order', () => {
+  const paletteLight = { background: '#111111', foreground: '#222222' };
+  const paletteDark = { foreground: '#eeeeee', background: '#dddddd' };
+  assert.doesNotThrow(() =>
+    generateFileContent({ sourceLabel: 'test', paletteLight, paletteDark, spacing: {}, radius: {} }),
+  );
+});
+
+test('generateFileContent still rejects palettes with genuinely different key sets', () => {
+  const paletteLight = { background: '#111111' };
+  const paletteDark = { background: '#dddddd', foreground: '#eeeeee' };
+  assert.throws(() =>
+    generateFileContent({ sourceLabel: 'test', paletteLight, paletteDark, spacing: {}, radius: {} }),
+  );
+});
+
+test('convertColor rejects a malformed hex color instead of passing it through', () => {
+  assert.throws(() => convertColor('#12345'), TokenSyncError);
 });
 
 test('syncTokens throws naming the offending token and file when a token value is unsupported', () => {

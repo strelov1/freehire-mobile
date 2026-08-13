@@ -13,10 +13,7 @@ function withTokenContext(fileLabel, tokenName, fn) {
   try {
     return fn();
   } catch (err) {
-    if (err instanceof TokenSyncError) {
-      throw new TokenSyncError(`${fileLabel}: token "${tokenName}": ${err.message}`);
-    }
-    throw err;
+    throw new TokenSyncError(`${fileLabel}: token "${tokenName}": ${err.message}`);
   }
 }
 
@@ -53,7 +50,7 @@ export function convertDimension(value) {
 
 // ---- color conversion ----
 
-const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
+const HEX_COLOR = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 
 export function convertColor(value) {
   const trimmed = value.trim();
@@ -153,7 +150,12 @@ export function buildRadius(rawTokens, fileLabel) {
 // ---- source reading ----
 
 function readTokenFile(path) {
-  const json = JSON.parse(readFileSync(path, 'utf8'));
+  let json;
+  try {
+    json = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (err) {
+    throw new TokenSyncError(`cannot read token file ${path}: ${err.message}`);
+  }
   const entries = {};
   for (const [key, value] of Object.entries(json)) {
     if (key.startsWith('$')) continue;
@@ -180,8 +182,8 @@ export function loadTokens(tokensDir) {
 
 export function generateFileContent({ sourceLabel, paletteLight, paletteDark, spacing, radius }) {
   const lightKeys = Object.keys(paletteLight);
-  const darkKeys = Object.keys(paletteDark);
-  const sameKeys = lightKeys.length === darkKeys.length && lightKeys.every((k, i) => k === darkKeys[i]);
+  const darkKeySet = new Set(Object.keys(paletteDark));
+  const sameKeys = lightKeys.length === darkKeySet.size && lightKeys.every((k) => darkKeySet.has(k));
   if (!sameKeys) {
     throw new TokenSyncError(
       'color.tokens.json and color-dark.tokens.json define different token sets — cannot build a single GeneratedPalette type',

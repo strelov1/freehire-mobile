@@ -1,0 +1,6 @@
+{
+  "$description": "Fixture radius tokens for sync-design-tokens tests.",
+  "$type": "dimension",
+  "radius": { "$value": "0.625rem", "$description": "Base radius — the bare token becomes the DEFAULT key." },
+  "radius-sm": { "$value": "calc(0.625rem * 0.6)", "$description": "Calc multiplication expression." }
+}

@@ -1,0 +1,5 @@
+{
+  "$description": "Deliberately malformed JSON (trailing comma) for the loadTokens error-path test.",
+  "$type": "color",
+  "background": { "$value": "#111111" },
+}
