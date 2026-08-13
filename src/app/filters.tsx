@@ -24,6 +24,7 @@ import {
   filtersFromProfile,
   filtersToQuery,
   POSTED_WITHIN,
+  QUICK_FACET_PARAMS,
   setPostedWithin,
   toggleValue,
   type JobFilters,
@@ -154,9 +155,9 @@ export default function FiltersScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardDismissMode="on-drag">
-        {/* Region and Work format live on the dedicated /filters/quick screen
+        {/* QUICK_FACET_PARAMS live on the dedicated /filters/quick screen
             (reached via the feed's region shortcut), not here. */}
-        {FACETS.filter((f) => f.param !== 'work_mode' && f.param !== 'regions').map((facet) => (
+        {FACETS.filter((f) => !QUICK_FACET_PARAMS.includes(f.param)).map((facet) => (
           <View key={facet.param} style={styles.section}>
             <Text style={[styles.sectionLabel, { color: c.foreground }]}>{facet.label}</Text>
             <View style={styles.chips}>

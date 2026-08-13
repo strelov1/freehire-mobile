@@ -8,13 +8,11 @@ import { Chip } from '@/components/Chip';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useFilters } from '@/lib/filterStore';
 import { facetValueLabel } from '@/lib/format';
-import { FACETS, filtersToQuery, toggleValue, type JobFilters } from '@/lib/jobFilters';
+import { FACETS, QUICK_FACET_PARAMS, filtersToQuery, toggleValue, type JobFilters } from '@/lib/jobFilters';
 import { useDebounced } from '@/lib/useDebounced';
 import { useFacetCounts } from '@/lib/useJobSearch';
 
-// The two facets this screen owns — pulled out of the main Filters screen so
-// they're reachable in one tap from the feed's region shortcut button.
-const QUICK_FACETS = FACETS.filter((f) => f.param === 'work_mode' || f.param === 'regions');
+const QUICK_FACETS = FACETS.filter((f) => QUICK_FACET_PARAMS.includes(f.param));
 
 // Stable reference so the counts useMemo below doesn't invalidate every
 // render while `counts` is still loading.
@@ -55,8 +53,7 @@ export default function QuickFiltersScreen() {
   function clearAll() {
     setStaged((s) => {
       const facets = { ...s.facets };
-      delete facets.work_mode;
-      delete facets.regions;
+      for (const param of QUICK_FACET_PARAMS) delete facets[param];
       return { ...s, facets };
     });
   }
@@ -64,7 +61,7 @@ export default function QuickFiltersScreen() {
   return (
     <SafeAreaView edges={['top', 'bottom']} style={[styles.fill, { backgroundColor: c.background }]}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: c.foreground }]}>Region & Work format</Text>
+        <Text style={[styles.title, { color: c.foreground }]}>Quick filters</Text>
         <Pressable
           onPress={() => router.back()}
           hitSlop={12}

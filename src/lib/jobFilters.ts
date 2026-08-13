@@ -61,6 +61,12 @@ export const FACETS: FacetDef[] = [
   },
 ];
 
+/** The facet params shown on the feed's `/filters/quick` shortcut screen
+ *  (reached via the search bar's region button) instead of the main Filters
+ *  screen. Single source of truth so the two screens' facet lists can't
+ *  silently drift apart. */
+export const QUICK_FACET_PARAMS = ['work_mode', 'regions', 'employment_type'];
+
 /** The presets behind the posted-within control (single choice; Any = null). */
 export const POSTED_WITHIN: { days: number | null; label: string }[] = [
   { days: 1, label: 'Today' },
