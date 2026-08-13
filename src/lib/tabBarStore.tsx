@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, type PropsWithChildren } from 'react';
+import { createContext, useCallback, useContext, useMemo, useRef, type PropsWithChildren } from 'react';
 import { useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 
 import { nextTabBarHidden, TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
@@ -38,10 +38,13 @@ export function TabBarVisibilityProvider({ children }: PropsWithChildren) {
     [translateY],
   );
 
+  const value = useMemo<TabBarVisibility>(
+    () => ({ translateY, reportScrollY }),
+    [translateY, reportScrollY],
+  );
+
   return (
-    <TabBarVisibilityContext.Provider value={{ translateY, reportScrollY }}>
-      {children}
-    </TabBarVisibilityContext.Provider>
+    <TabBarVisibilityContext.Provider value={value}>{children}</TabBarVisibilityContext.Provider>
   );
 }
 
