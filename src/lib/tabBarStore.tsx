@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useRef, type PropsWithChildren } from 'react';
+import { createContext, useCallback, useContext, useRef, type PropsWithChildren } from 'react';
 import { useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 
 import { nextTabBarHidden, TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
@@ -21,24 +21,27 @@ export function TabBarVisibilityProvider({ children }: PropsWithChildren) {
   const lastOffsetRef = useRef(0);
   const hiddenRef = useRef(false);
 
-  const value = useMemo<TabBarVisibility>(
-    () => ({
-      translateY,
-      reportScrollY: (offsetY: number) => {
-        const delta = offsetY - lastOffsetRef.current;
-        lastOffsetRef.current = offsetY;
+  const reportScrollY = useCallback(
+    (offsetY: number) => {
+      const delta = offsetY - lastOffsetRef.current;
+      lastOffsetRef.current = offsetY;
 
-        const hidden = nextTabBarHidden(hiddenRef.current, delta, offsetY);
-        if (hidden === hiddenRef.current) return;
-        hiddenRef.current = hidden;
-        translateY.value = withTiming(hidden ? TAB_BAR_HEIGHT : 0, { duration: 200 });
-      },
-    }),
+      const hidden = nextTabBarHidden(hiddenRef.current, delta, offsetY);
+      if (hidden === hiddenRef.current) return;
+      hiddenRef.current = hidden;
+      // Mutating `.value` is Reanimated's documented, worklet-safe way to drive
+      // a SharedValue — the compiler's general immutability rule doesn't yet
+      // recognize that exception, so it misreads this as illegal hook-value mutation.
+      // eslint-disable-next-line react-hooks/immutability
+      translateY.value = withTiming(hidden ? TAB_BAR_HEIGHT : 0, { duration: 200 });
+    },
     [translateY],
   );
 
   return (
-    <TabBarVisibilityContext.Provider value={value}>{children}</TabBarVisibilityContext.Provider>
+    <TabBarVisibilityContext.Provider value={{ translateY, reportScrollY }}>
+      {children}
+    </TabBarVisibilityContext.Provider>
   );
 }
 
