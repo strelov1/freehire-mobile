@@ -211,10 +211,10 @@ export const radius: Record<string, number> = ${JSON.stringify(radius, null, 2)}
 
 // ---- pipeline ----
 
-export function syncTokens(tokensDir) {
+export function syncTokens(tokensDir, sourceLabel = tokensDir) {
   const { color, colorDark, spacing, radius } = loadTokens(tokensDir);
   return generateFileContent({
-    sourceLabel: tokensDir,
+    sourceLabel,
     paletteLight: buildPalette(color, 'color.tokens.json'),
     paletteDark: buildPalette(colorDark, 'color-dark.tokens.json'),
     spacing: buildSpacing(spacing, 'spacing.tokens.json'),
@@ -230,7 +230,7 @@ function main() {
   const outputPath = resolve(__dirname, '../src/constants/tokens.generated.ts');
 
   try {
-    const content = syncTokens(tokensDir);
+    const content = syncTokens(tokensDir, '../hire/design-system/tokens');
     mkdirSync(dirname(outputPath), { recursive: true });
     writeFileSync(outputPath, content, 'utf8');
     console.log(`Wrote ${outputPath}`);

@@ -27,6 +27,6 @@
 
 ## 5. Verification
 
-- [ ] 5.1 Run `npm run sync-tokens` against the real `../hire/design-system` checkout and confirm `src/constants/tokens.generated.ts` is produced
-- [ ] 5.2 Manually diff the generated color values against the current hand-written values in `src/constants/freehire.ts` and confirm they match
-- [ ] 5.3 Confirm `tsc --noEmit` passes with the new generated file in place
+- [x] 5.1 Run `npm run sync-tokens` against the real `../hire/design-system` checkout and confirm `src/constants/tokens.generated.ts` is produced
+- [x] 5.2 Manually diff the generated color values against the current hand-written values in `src/constants/freehire.ts` — **found real drift, not just rounding noise**: most oklch-derived grays/darks differ meaningfully from the hand-written hex (e.g. `foreground` light: hand `#1c1c1c` vs generated `#070707`; `mutedForeground` light: hand `#6f6f6f` vs generated `#505050`). Independently re-derived the OKLab→linear-sRGB→gamma math by hand for several of these and it matches the generated values, not the hand-written ones — the generated output is the spec-correct conversion. Only pure-hex tokens (the light-mode `brand-*` values) match exactly, since those pass through unconverted. Not fixing `freehire.ts` here — out of scope per proposal.md Non-Goals — but this is a concrete argument for prioritizing that follow-up change.
+- [x] 5.3 Confirm `tsc --noEmit` passes with the new generated file in place — `tokens.generated.ts` itself introduces zero new errors. `tsc --noEmit` does exit non-zero, but from two pre-existing, unrelated errors (`src/components/animated-icon.web.tsx`, `src/constants/theme.ts`) present on `master` before this change and untouched by it.

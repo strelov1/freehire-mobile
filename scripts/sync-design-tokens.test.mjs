@@ -267,6 +267,12 @@ test('convertColor rejects a malformed hex color instead of passing it through',
   assert.throws(() => convertColor('#12345'), TokenSyncError);
 });
 
+test('syncTokens uses a stable source label when given one, instead of the resolved read path', () => {
+  const content = syncTokens(fixturesDir, '../hire/design-system/tokens');
+  assert.match(content, /\/\/ Source: \.\.\/hire\/design-system\/tokens/);
+  assert.doesNotMatch(content, new RegExp(fixturesDir.replace(/[/\\]/g, '\\$&')));
+});
+
 test('syncTokens throws naming the offending token and file when a token value is unsupported', () => {
   const invalidDir = join(__dirname, '__fixtures__', 'invalid');
   assert.throws(
