@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/authStore';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { facetValueLabel, formatDate, profileLocationSummary } from '@/lib/format';
+import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
 import { useProfile } from '@/lib/useProfile';
 
 /** One row of chips (specializations or skills), reusing the identity
@@ -29,10 +30,10 @@ function ChipRow({ c, values }: { c: ReturnType<typeof getColors>; values: strin
 }
 
 /**
- * The profile screen (modal) for a signed-in user: their identity, a
- * read-only view of their saved profile (specializations, skills, location),
- * and a sign-out button. Signing out clears the session and closes the modal
- * back to the feed.
+ * The Profile tab: a signed-in user's identity, a read-only view of their
+ * saved profile (specializations, skills, location), and a sign-out button.
+ * Signed out, it shows an inline "Sign in" prompt instead of redirecting —
+ * the tab itself is always a valid destination.
  */
 export default function ProfileScreen() {
   const c = getColors(useColorScheme());
@@ -43,34 +44,50 @@ export default function ProfileScreen() {
   async function onSignOut() {
     setBusy(true);
     await signOut();
-    router.back();
   }
 
-  const joined = formatDate(user?.created_at);
+  if (!user) {
+    return (
+      <SafeAreaView edges={['top']} style={[styles.fill, styles.center, { backgroundColor: c.background }]}>
+        <SymbolView name="person.crop.circle" size={56} tintColor={c.mutedForeground} />
+        <Text style={[styles.stateText, { color: c.mutedForeground }]}>
+          Sign in to see your profile.
+        </Text>
+        <Pressable
+          onPress={() => router.push('/auth')}
+          style={({ pressed }) => [
+            styles.signIn,
+            { backgroundColor: c.brand },
+            pressed && { opacity: 0.85 },
+          ]}>
+          <Text style={[styles.signInText, { color: c.brandForeground }]}>Sign in</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
+
+  const joined = formatDate(user.created_at);
   const locationLines = profile ? profileLocationSummary(profile.location_preferences) : [];
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={[styles.fill, { backgroundColor: c.background }]}>
+    <SafeAreaView edges={['top']} style={[styles.fill, { backgroundColor: c.background }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: c.foreground }]}>Profile</Text>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={({ pressed }) => pressed && { opacity: 0.5 }}>
-          <SymbolView name="xmark" size={20} weight="semibold" tintColor={c.foreground} />
-        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.identity}>
           <SymbolView name="person.crop.circle.fill" size={56} tintColor={c.brandStrong} />
           <Text style={[styles.email, { color: c.foreground }]} numberOfLines={1}>
-            {user?.email ?? 'Signed in'}
+            {user.email}
           </Text>
           <View style={styles.badges}>
-            {user?.role && user.role !== 'user' ? (
+            {user.role && user.role !== 'user' ? (
               <View style={[styles.badge, { backgroundColor: c.brandMuted }]}>
                 <Text style={[styles.badgeText, { color: c.brandStrong }]}>{user.role}</Text>
               </View>
             ) : null}
-            {user?.beta_tester ? (
+            {user.beta_tester ? (
               <View style={[styles.badge, { backgroundColor: c.brandMuted }]}>
                 <Text style={[styles.badgeText, { color: c.brandStrong }]}>beta</Text>
               </View>
@@ -127,10 +144,22 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  center: { alignItems: 'center', justifyContent: 'center', gap: Space.md, padding: Space.xl },
+  stateText: {
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  signIn: {
+    borderRadius: Radius.lg,
+    paddingHorizontal: Space.xl,
+    paddingVertical: 12,
+  },
+  signInText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: Space.lg,
     paddingVertical: Space.md,
   },
@@ -198,7 +227,8 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: Space.lg,
-    paddingBottom: Space.lg,
+    // Clears the custom bottom tab bar so the sign-out button isn't hidden behind it.
+    paddingBottom: Space.lg + TAB_BAR_HEIGHT,
   },
   signOut: {
     borderWidth: 1,

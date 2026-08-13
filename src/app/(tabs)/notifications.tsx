@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { markNotificationRead } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
+import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
 import type { NotificationItem, NotificationsPage } from '@/lib/types';
 import { useNotifications } from '@/lib/useNotifications';
 
@@ -213,15 +214,9 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={[styles.fill, { backgroundColor: c.background }]}>
+    <SafeAreaView edges={['top']} style={[styles.fill, { backgroundColor: c.background }]}>
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: c.foreground }]}>Notifications</Text>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          style={({ pressed }) => pressed && { opacity: 0.5 }}>
-          <SymbolView name="xmark" size={20} weight="semibold" tintColor={c.foreground} />
-        </Pressable>
       </View>
       {body}
     </SafeAreaView>
@@ -232,9 +227,6 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center', gap: Space.md, padding: Space.xl },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: Space.lg,
     paddingVertical: Space.md,
   },
@@ -246,7 +238,8 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: Space.lg,
     paddingTop: Space.xs,
-    paddingBottom: Space.xl,
+    // Clears the custom bottom tab bar so the last card isn't hidden behind it.
+    paddingBottom: Space.xl + TAB_BAR_HEIGHT,
   },
   card: {
     flexDirection: 'row',
