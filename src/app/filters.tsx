@@ -1,6 +1,6 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -60,11 +60,26 @@ export default function FiltersScreen() {
   const { filters, apply } = useFilters();
   const { user } = useAuth();
   const { data: profile, isLoading: profileLoading } = useProfile();
+  const { focus } = useLocalSearchParams<{ focus?: string }>();
 
   // Seed once from the live filters; edits stay local until "Show N jobs".
   const [staged, setStaged] = useState<JobFilters>(() => filters);
   const [countryQuery, setCountryQuery] = useState('');
   const [skillQuery, setSkillQuery] = useState('');
+
+  // Opened via the feed's region shortcut (?focus=regions): scroll the Region
+  // section into view once, as soon as both its layout and the intent to
+  // focus it are known. Guarded so it fires at most once per mount, not on
+  // every re-layout (e.g. when facet counts arrive).
+  const scrollRef = useRef<ScrollView>(null);
+  const [regionY, setRegionY] = useState<number | null>(null);
+  const hasScrolledToRegionRef = useRef(false);
+  useEffect(() => {
+    if (hasScrolledToRegionRef.current) return;
+    if (focus !== 'regions' || regionY == null) return;
+    hasScrolledToRegionRef.current = true;
+    scrollRef.current?.scrollTo({ y: regionY, animated: true });
+  }, [focus, regionY]);
 
   const stagedQuery = useMemo(() => filtersToQuery(staged), [staged]);
   const debouncedQuery = useDebounced(stagedQuery, 250);
@@ -161,9 +176,16 @@ export default function FiltersScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardDismissMode="on-drag">
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardDismissMode="on-drag">
         {FACETS.map((facet) => (
-          <View key={facet.param} style={styles.section}>
+          <View
+            key={facet.param}
+            style={styles.section}
+            onLayout={
+              facet.param === 'regions'
+                ? (e) => setRegionY(e.nativeEvent.layout.y)
+                : undefined
+            }>
             <Text style={[styles.sectionLabel, { color: c.foreground }]}>{facet.label}</Text>
             <View style={styles.chips}>
               {facet.values.map((value) => {

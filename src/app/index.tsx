@@ -19,6 +19,7 @@ import { getColors, Radius, Space } from '@/constants/freehire';
 import { useAuth } from '@/lib/authStore';
 import { useDismissedJobs } from '@/lib/useDismissedJobs';
 import { useFilters } from '@/lib/filterStore';
+import { regionShortcutLabel } from '@/lib/format';
 import { activeFilterCount, emptyFilters } from '@/lib/jobFilters';
 import type { Job } from '@/lib/types';
 import { useJobSearch } from '@/lib/useJobSearch';
@@ -52,6 +53,8 @@ export default function FeedScreen() {
   );
   const total = data?.pages[0]?.meta.total ?? 0;
   const activeCount = activeFilterCount(filters);
+  const selectedRegions = filters.facets.regions ?? [];
+  const regionTint = selectedRegions.length > 0 ? c.brandStrong : c.mutedForeground;
 
   // Wipe both the search text and every filter (the empty-state escape hatch).
   const resetAll = () => {
@@ -68,6 +71,19 @@ export default function FeedScreen() {
           signed in, the profile screen. */}
       <View style={styles.searchRow}>
         <View style={[styles.search, { backgroundColor: c.card, borderColor: c.border }]}>
+          <Pressable
+            onPress={() => router.push('/filters?focus=regions')}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.regionInInput,
+              { borderRightColor: c.border },
+              pressed && { opacity: 0.6 },
+            ]}>
+            <SymbolView name="globe" size={17} tintColor={regionTint} />
+            <Text numberOfLines={1} style={[styles.regionLabel, { color: regionTint }]}>
+              {regionShortcutLabel(selectedRegions)}
+            </Text>
+          </Pressable>
           <SymbolView name="magnifyingglass" size={17} tintColor={c.mutedForeground} />
           <TextInput
             value={filters.q}
@@ -79,6 +95,11 @@ export default function FeedScreen() {
             autoCorrect={false}
             returnKeyType="search"
           />
+          {filters.q.length > 0 ? (
+            <Pressable onPress={() => setQuery('')} hitSlop={8}>
+              <SymbolView name="xmark.circle.fill" size={16} tintColor={c.mutedForeground} />
+            </Pressable>
+          ) : null}
           <Pressable
             onPress={() => router.push('/filters')}
             hitSlop={8}
@@ -263,6 +284,21 @@ const styles = StyleSheet.create({
     paddingLeft: Space.sm,
     marginLeft: Space.xs,
     borderLeftWidth: 1,
+  },
+  regionInInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'stretch',
+    maxWidth: 100,
+    paddingRight: Space.sm,
+    marginRight: Space.xs,
+    borderRightWidth: 1,
+  },
+  regionLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    flexShrink: 1,
   },
   count: {
     fontSize: 13,
