@@ -24,11 +24,15 @@ const ROUTE_META: Record<string, { label: string; icon: SFSymbol; iconFilled: SF
  */
 function AnimatedTabBar({ state, navigation, insets }: BottomTabBarProps) {
   const c = getColors(useColorScheme());
-  const { translateY } = useTabBarVisibility();
+  const { hidden } = useTabBarVisibility();
   const { data: unreadCount = 0 } = useUnreadCount();
 
+  // The bar's real height includes the bottom safe-area inset; `hidden` is
+  // normalized (0/1) since the shared value doesn't know that inset, so the
+  // pixel translateY is computed here, where `insets` is available.
+  const barHeight = TAB_BAR_HEIGHT + insets.bottom;
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [{ translateY: hidden.value * barHeight }],
   }));
 
   return (
@@ -37,7 +41,7 @@ function AnimatedTabBar({ state, navigation, insets }: BottomTabBarProps) {
         styles.bar,
         animatedStyle,
         {
-          height: TAB_BAR_HEIGHT + insets.bottom,
+          height: barHeight,
           paddingBottom: insets.bottom,
           backgroundColor: c.card,
           borderTopColor: c.border,
