@@ -344,11 +344,7 @@ function Chip({
 }
 
 /** A skill's three states: unselected, wanted (include), or avoided (exclude).
- *  Tapping cycles through them (see `cycleSkill`). Reuses the app's one
- *  existing "destructive" color (`auth.tsx`'s error text) since there's no
- *  palette token for it yet. */
-const EXCLUDE_COLOR = '#dc2626';
-
+ *  Tapping cycles through them (see `cycleSkill`). */
 function SkillChip({
   label,
   count,
@@ -370,8 +366,8 @@ function SkillChip({
       textColor = colors.brandStrong;
       break;
     case 'exclude':
-      stateStyle = { backgroundColor: colors.card, borderColor: EXCLUDE_COLOR };
-      textColor = EXCLUDE_COLOR;
+      stateStyle = { backgroundColor: colors.card, borderColor: colors.destructive };
+      textColor = colors.destructive;
       break;
     default:
       stateStyle = { backgroundColor: colors.card, borderColor: colors.border };

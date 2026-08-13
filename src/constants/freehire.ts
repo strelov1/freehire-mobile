@@ -24,6 +24,8 @@ export type FreehirePalette = {
   brandStrong: string;
   brandMuted: string;
   brandRing: string;
+  destructive: string;
+  destructiveMuted: string;
 };
 
 const light: FreehirePalette = {
@@ -39,6 +41,8 @@ const light: FreehirePalette = {
   brandStrong: '#4c5c00',
   brandMuted: '#e5eacd',
   brandRing: '#b2c248',
+  destructive: '#dc2626', // oklch(0.577 0.245 27.325) — shadcn default red-600
+  destructiveMuted: '#dc262626', // destructive at ~15% alpha
 };
 
 const dark: FreehirePalette = {
@@ -54,6 +58,8 @@ const dark: FreehirePalette = {
   brandStrong: '#adbf6d', // oklch(0.79 0.1 118)
   brandMuted: '#3b3f28', // oklch(0.31 0.045 118)
   brandRing: '#8ea24f', // oklch(0.6 0.09 118)
+  destructive: '#f87171', // oklch(0.704 0.191 22.216) — calmer red on dark
+  destructiveMuted: '#f8717126', // destructive at ~15% alpha
 };
 
 /** Accepts RN's `ColorSchemeName` (which includes 'unspecified') — anything that

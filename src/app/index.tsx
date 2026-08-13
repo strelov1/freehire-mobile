@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { JobCard } from '@/components/JobCard';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useAuth } from '@/lib/authStore';
+import { useDismissedJobs } from '@/lib/useDismissedJobs';
 import { useFilters } from '@/lib/filterStore';
 import { activeFilterCount, emptyFilters } from '@/lib/jobFilters';
 import type { Job } from '@/lib/types';
@@ -28,6 +29,7 @@ export default function FeedScreen() {
   const { filters, appliedQuery, setQuery, apply } = useFilters();
   const { user } = useAuth();
   const { data: unreadCount = 0 } = useUnreadCount();
+  const { isDismissed } = useDismissedJobs();
   const {
     data,
     isLoading,
@@ -40,7 +42,14 @@ export default function FeedScreen() {
     isFetchingNextPage,
   } = useJobSearch(appliedQuery);
 
-  const jobs = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
+  // Drop jobs the signed-in user just hid (swiped left on) from the rendered
+  // list — belt-and-suspenders freshness alongside the backend's own dismissed
+  // exclusion, so a hide takes effect on THIS page immediately rather than
+  // waiting for the next fetch. See job-card-swipe-actions spec.
+  const jobs = useMemo(
+    () => (data?.pages.flatMap((p) => p.data) ?? []).filter((job) => !isDismissed(job.public_slug)),
+    [data, isDismissed],
+  );
   const total = data?.pages[0]?.meta.total ?? 0;
   const activeCount = activeFilterCount(filters);
 

@@ -189,7 +189,7 @@ export default function AuthScreen() {
               onSubmitEditing={submit}
             />
 
-            {error ? <Text style={[styles.error, { color: '#dc2626' }]}>{error}</Text> : null}
+            {error ? <Text style={[styles.error, { color: c.destructive }]}>{error}</Text> : null}
 
             <Pressable
               onPress={submit}

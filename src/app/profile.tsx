@@ -86,8 +86,7 @@ export default function ProfileScreen() {
           {profileLoading ? (
             <ActivityIndicator color={c.mutedForeground} />
           ) : profileError ? (
-            // Error red matches the auth modal's — there is no palette token for it.
-            <Text style={[styles.emptyText, { color: '#dc2626' }]}>{"Couldn't load your profile."}</Text>
+            <Text style={[styles.emptyText, { color: c.destructive }]}>{"Couldn't load your profile."}</Text>
           ) : profile ? (
             <View style={styles.profileBody}>
               <ChipRow c={c} values={profile.specializations.map((s) => facetValueLabel('category', s))} />
@@ -100,7 +99,7 @@ export default function ProfileScreen() {
             </View>
           ) : (
             <Text style={[styles.emptyText, { color: c.mutedForeground }]}>
-              No profile saved yet. Set one up at freehire.dev/my/profile.
+              No profile saved yet. Set one up at freehire.me/my/profile.
             </Text>
           )}
         </View>

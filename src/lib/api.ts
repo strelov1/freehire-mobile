@@ -20,7 +20,7 @@ import type {
 } from './types';
 
 /** Production API. Public, unauthenticated reads — no key needed for the feed. */
-export const API_BASE = 'https://freehire.dev';
+export const API_BASE = 'https://freehire.me';
 
 /**
  * A failed API call, carrying the HTTP status and the server's `{"error": …}`
@@ -173,6 +173,27 @@ export async function unsaveJob(slug: string): Promise<UserJob> {
 /** The slugs of every job the signed-in user has saved. */
 export async function savedSlugs(): Promise<string[]> {
   const { data } = await send<{ data: string[] }>('/api/v1/me/tracking/saved', { method: 'GET' });
+  return data ?? [];
+}
+
+// --- Dismissed (hidden) jobs (session-scoped) -------------------------------
+
+/** Hide a job from the feed (dismiss). Keeps it out of the feed only — the job
+ *  stays visible in search and on its own detail page. */
+export async function dismissJob(slug: string): Promise<UserJob> {
+  const { data } = await send<{ data: UserJob }>(`/api/v1/jobs/${slug}/dismiss`, { method: 'POST' });
+  return data;
+}
+
+/** Clear a job's dismissed mark. Idempotent. */
+export async function undismissJob(slug: string): Promise<UserJob> {
+  const { data } = await send<{ data: UserJob }>(`/api/v1/jobs/${slug}/dismiss`, { method: 'DELETE' });
+  return data;
+}
+
+/** The slugs of every job the signed-in user has hidden (dismissed). */
+export async function dismissedSlugs(): Promise<string[]> {
+  const { data } = await send<{ data: string[] }>('/api/v1/me/tracking/dismissed', { method: 'GET' });
   return data ?? [];
 }
 
