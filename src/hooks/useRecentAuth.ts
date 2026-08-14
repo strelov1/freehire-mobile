@@ -2,7 +2,16 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 import type { RecentAuthProof } from '@/features/auth/model/authV2Types';
 import { useAuth } from '@/lib/authStore';
+import {
+  clearRecentAuth,
+  getRecentAuthSnapshot,
+  hasRecentAuthNow,
+  recordRecentAuth,
+  subscribeRecentAuth,
+} from '@/lib/recentAuthStore';
 import { ApiError } from '@/lib/transport';
+
+export { clearRecentAuth, recordRecentAuth } from '@/lib/recentAuthStore';
 
 export type ReauthMethod = 'password' | 'oauth' | 'apple';
 
@@ -39,116 +48,6 @@ export type UseRecentAuthReturn = {
   ) => Promise<T>;
 };
 
-type Snapshot = {
-  hasRecentAuth: boolean;
-  remainingSeconds: number;
-  recentAuthExpiresAt: Date | null;
-};
-
-// Module-level shared proof state so all components and hooks remain in sync
-let sharedExpiresAt: Date | null = null;
-let intervalId: ReturnType<typeof setInterval> | null = null;
-const listeners = new Set<() => void>();
-
-function calculateRemainingSeconds(expiresAt: Date | null): number {
-  if (!expiresAt) return 0;
-  const diffMs = expiresAt.getTime() - Date.now();
-  return Math.max(0, Math.ceil(diffMs / 1000));
-}
-
-function computeSnapshot(): Snapshot {
-  const remaining = calculateRemainingSeconds(sharedExpiresAt);
-  return {
-    hasRecentAuth: remaining > 0,
-    remainingSeconds: remaining,
-    recentAuthExpiresAt: remaining > 0 ? sharedExpiresAt : null,
-  };
-}
-
-let lastSnapshot: Snapshot = computeSnapshot();
-
-function notify() {
-  lastSnapshot = computeSnapshot();
-  for (const listener of listeners) {
-    listener();
-  }
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-function getSnapshot(): Snapshot {
-  return lastSnapshot;
-}
-
-function updateTimer() {
-  if (sharedExpiresAt && sharedExpiresAt.getTime() > Date.now()) {
-    if (!intervalId) {
-      intervalId = setInterval(() => {
-        if (!sharedExpiresAt || sharedExpiresAt.getTime() <= Date.now()) {
-          sharedExpiresAt = null;
-          if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
-          }
-        }
-        notify();
-      }, 1000);
-      if (typeof intervalId === 'object' && typeof (intervalId as { unref?: () => void }).unref === 'function') {
-        (intervalId as { unref: () => void }).unref();
-      }
-    }
-  } else {
-    sharedExpiresAt = null;
-    if (intervalId) {
-      clearInterval(intervalId);
-      intervalId = null;
-    }
-  }
-  notify();
-}
-
-/** Directly record recent authentication expiry in module store */
-export function recordRecentAuth(proof: string | Date | RecentAuthProof | null | undefined) {
-  if (!proof) {
-    clearRecentAuth();
-    return;
-  }
-  let date: Date;
-  if (proof instanceof Date) {
-    date = proof;
-  } else if (typeof proof === 'string') {
-    date = new Date(proof);
-  } else if (typeof proof === 'object' && 'recent_auth_expires_at' in proof) {
-    date = new Date(proof.recent_auth_expires_at);
-  } else {
-    clearRecentAuth();
-    return;
-  }
-
-  if (isNaN(date.getTime()) || date.getTime() <= Date.now()) {
-    clearRecentAuth();
-    return;
-  }
-
-  sharedExpiresAt = date;
-  updateTimer();
-}
-
-/** Directly clear recent authentication expiry in module store */
-export function clearRecentAuth() {
-  sharedExpiresAt = null;
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
-  }
-  notify();
-}
-
 /** Determine if an error is an HTTP 428 Precondition Required or recent_auth_required error */
 export function isRecentAuthRequiredError(error: unknown): boolean {
   if (!error) return false;
@@ -173,12 +72,14 @@ export function isRecentAuthRequiredError(error: unknown): boolean {
  */
 export function useRecentAuth(): UseRecentAuthReturn {
   const { user, sessionEpoch, passwordReauth, oauthReauth, appleReauth } = useAuth();
-  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const snapshot = useSyncExternalStore(subscribeRecentAuth, getRecentAuthSnapshot, getRecentAuthSnapshot);
 
   const previousUserRef = useRef<number | null>(user?.id ?? null);
   const previousEpochRef = useRef<number>(sessionEpoch);
 
-  // Clean reset whenever user identity or session epoch changes
+  // Belt and braces: the session coordinator already clears the window on every
+  // identity change, including while no screen is mounted. This catches a hook
+  // that mounts against an identity it has not seen before.
   useEffect(() => {
     const userChanged = previousUserRef.current !== (user?.id ?? null);
     const epochChanged = previousEpochRef.current !== sessionEpoch;
@@ -226,12 +127,20 @@ export function useRecentAuth(): UseRecentAuthReturn {
       action: () => Promise<T>,
       onRequestReauth?: () => Promise<boolean | RecentAuthProof | void>,
     ): Promise<T> => {
-      const currentSnap = computeSnapshot();
-      if (!currentSnap.hasRecentAuth && onRequestReauth) {
+      // A caller that resolves with the proof itself has just widened the window;
+      // record it so the retry does not immediately trip the same 428.
+      const absorbProof = (result: boolean | RecentAuthProof | void) => {
+        if (result && typeof result === 'object' && 'recent_auth_expires_at' in result) {
+          recordRecentAuth(result);
+        }
+      };
+
+      if (!hasRecentAuthNow() && onRequestReauth) {
         const reauthRes = await onRequestReauth();
         if (reauthRes === false) {
           throw new Error('reauth_cancelled');
         }
+        absorbProof(reauthRes);
       }
 
       try {
@@ -244,6 +153,7 @@ export function useRecentAuth(): UseRecentAuthReturn {
             if (reauthRes === false) {
               throw err;
             }
+            absorbProof(reauthRes);
             return await action();
           }
         }

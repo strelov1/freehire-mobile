@@ -211,6 +211,10 @@ export default function AuthScreen() {
     setMode(next);
     setError(null);
     setStatusMessage(null);
+    // Per-mode outcomes are not carried across: leaving them set shows a "check
+    // your inbox" or "password reset" panel on top of the next mode's form.
+    setForgotSubmitted(false);
+    setResetSuccess(false);
   }
 
   const isRegister = mode === 'register';
@@ -470,7 +474,13 @@ export default function AuthScreen() {
                     returnKeyType="go"
                     onSubmitEditing={handleAuthSubmit}
                   />
-                  <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={12} style={styles.eyeBtn}>
+                  <Pressable
+                    onPress={() => setShowPassword((v) => !v)}
+                    hitSlop={12}
+                    style={styles.eyeBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                    accessibilityState={{ selected: showPassword }}>
                     <EyeIcon size={20} color={theme.mutedText} off={!showPassword} />
                   </Pressable>
                 </Pressable>
@@ -690,7 +700,13 @@ export default function AuthScreen() {
                         returnKeyType="go"
                         onSubmitEditing={handleResetSubmit}
                       />
-                      <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={12} style={styles.eyeBtn}>
+                      <Pressable
+                        onPress={() => setShowPassword((v) => !v)}
+                        hitSlop={12}
+                        style={styles.eyeBtn}
+                        accessibilityRole="button"
+                        accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                        accessibilityState={{ selected: showPassword }}>
                         <EyeIcon size={20} color={theme.mutedText} off={!showPassword} />
                       </Pressable>
                     </Pressable>

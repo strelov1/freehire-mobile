@@ -1,5 +1,7 @@
 import * as Crypto from 'expo-crypto';
 
+import { secureRandomBytes } from './secureRandom';
+
 /**
  * Converts standard Base64 string to URL-safe Base64 without padding (RFC 4648 §5).
  */
@@ -37,18 +39,7 @@ export function bytesToBase64Url(bytes: Uint8Array): string {
  * @returns {string} 43-character base64url string
  */
 export function generateVerifier(): string {
-  let bytes: Uint8Array;
-  if (typeof Crypto.getRandomBytes === 'function') {
-    bytes = Crypto.getRandomBytes(32);
-  } else if (typeof globalThis.crypto?.getRandomValues === 'function') {
-    bytes = globalThis.crypto.getRandomValues(new Uint8Array(32));
-  } else {
-    bytes = new Uint8Array(32);
-    for (let i = 0; i < 32; i++) {
-      bytes[i] = Math.floor(Math.random() * 256);
-    }
-  }
-  return bytesToBase64Url(bytes);
+  return bytesToBase64Url(secureRandomBytes(32));
 }
 
 /**
@@ -80,8 +71,13 @@ export async function computeChallenge(verifier: string): Promise<string> {
     const encoder = new TextEncoder();
     const data = encoder.encode(verifier);
     const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', data);
-    base64Digest = bytesToBase64Url(new Uint8Array(hashBuffer));
-    return base64Digest;
+    return bytesToBase64Url(new Uint8Array(hashBuffer));
+  }
+
+  // An empty digest would otherwise travel on as an empty `code_challenge`,
+  // turning the exchange into a plain unprotected one.
+  if (!base64Digest) {
+    throw new Error('No SHA-256 implementation is available to compute the PKCE code challenge');
   }
 
   return base64ToBase64Url(base64Digest);

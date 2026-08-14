@@ -114,7 +114,11 @@ export function ReauthModal({
       recordRecentAuth(proof);
       onSuccess(proof);
       onClose();
+      return;
     }
+    // A provider that answered with anything but a proof (a full sign-in, say)
+    // leaves the sheet open; say so instead of looking frozen.
+    setErrorMessage('That did not confirm your identity. Please try again.');
   };
 
   const handleSocialError = (err: unknown) => {

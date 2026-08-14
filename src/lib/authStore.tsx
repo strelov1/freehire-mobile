@@ -16,9 +16,10 @@ import { SessionCoordinator } from '@/features/auth/session/sessionCoordinator';
 
 import { codeFromCallbackUrl } from './oauth';
 import { unregisterThisDevice } from './push';
+import { clearRecentAuth } from './recentAuthStore';
 import { PrivateMutationRegistry, clearPrivateUserData, privateKeys, publicKeys } from './queryKeys';
 import { saveJob } from './api';
-import { subscribeUnauthorized } from './transport';
+import { setAmbientSessionEpoch, subscribeUnauthorized } from './transport';
 import type { User } from './types';
 
 const OAUTH_CALLBACK = 'freehiremobile://auth-callback';
@@ -82,8 +83,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       onStateChange: (nextState) => {
         setState(nextState);
         setSessionEpoch(instance.getSessionEpoch());
+        // Keeps requests that do not thread an epoch of their own able to report
+        // a 401 against the session they were actually issued under.
+        setAmbientSessionEpoch(instance.getSessionEpoch());
       },
       transitionIdentity: async (previousUserId) => {
+        // Runs on every identity change, mounted screens or not, so the next
+        // account can never inherit the previous one's recent-auth window.
+        clearRecentAuth();
         if (previousUserId === undefined) return;
         await clearPrivateUserData(queryClient, mutationRegistry, previousUserId);
       },
@@ -92,7 +99,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (router.canGoBack()) {
             router.back();
           } else {
-            router.replace('/profile');
+            // The intent records where the user was headed; every navigate intent
+            // today comes from an account screen, so send them there rather than
+            // to the profile tab they never asked for.
+            router.replace(intent.destination === 'account' ? '/account' : '/profile');
           }
           return;
         }

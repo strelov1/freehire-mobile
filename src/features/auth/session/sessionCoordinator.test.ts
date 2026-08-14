@@ -18,6 +18,7 @@ jest.mock('../api/authV2Api', () => ({
 }));
 
 jest.mock('expo-apple-authentication', () => ({
+  isAvailableAsync: jest.fn(() => Promise.resolve(true)),
   signInAsync: jest.fn(),
   AppleAuthenticationScope: {
     FULL_NAME: 0,

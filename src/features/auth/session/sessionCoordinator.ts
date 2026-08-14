@@ -138,10 +138,6 @@ export class SessionCoordinator {
     return this.authenticate('register', (signal) => this.dependencies.api.register(email, password, signal));
   }
 
-  completeOAuth(code: string) {
-    return this.authenticate('oauth', (signal) => this.dependencies.api.exchangeOAuth(code, signal));
-  }
-
   async oauth(provider: string): Promise<AuthCompletion> {
     const previousState = this.state;
     const operation = this.begin({ type: 'AUTHENTICATING', operation: 'oauth' });
@@ -181,8 +177,14 @@ export class SessionCoordinator {
         codeChallenge,
       });
 
+      // No fallback to `openOAuth`: that opens the v1 start URL, which carries no
+      // code challenge, and the v2 exchange below would then present a verifier
+      // for a handshake that was never bound to it.
       const opener = this.dependencies.openOAuthV2;
-      const browser = opener ? await opener(url) : await this.dependencies.openOAuth(provider);
+      if (!opener) {
+        throw new Error('PKCE OAuth requires an openOAuthV2 opener');
+      }
+      const browser = await opener(url);
       if (!this.isCurrent(operation)) return { status: 'cancelled', intent: 'none' };
       if (browser.cancelled || !browser.code) {
         this.restoreAfterAuthFailure(previousState);
@@ -211,6 +213,12 @@ export class SessionCoordinator {
     const previousState = this.state;
     const operation = this.begin({ type: 'AUTHENTICATING', operation: 'oauth' });
     try {
+      // Ask before spending a server-side attempt on a device that cannot answer
+      // (Apple sign-in needs iOS 13+, and the module is absent in Expo Go).
+      if (!(await AppleAuthentication.isAvailableAsync())) {
+        throw new Error('Sign in with Apple is not available on this device');
+      }
+
       const rawNonce = generateNonce();
       const nonceChallenge = await sha256Hex(rawNonce);
       const attempt = await authV2Api.appleAttempt(purpose, nonceChallenge, operation.controller.signal);
@@ -244,10 +252,16 @@ export class SessionCoordinator {
 
       if (!this.isCurrent(operation)) return { status: 'cancelled', intent: 'none' };
 
+      // The identity token is the whole credential; sending an empty one would
+      // turn a broken Apple response into an opaque server-side rejection.
+      if (!credential.identityToken) {
+        throw new Error('Apple did not return an identity token');
+      }
+
       const res = await authV2Api.appleExchange(
         {
           attempt_id: attempt.attempt_id,
-          identity_token: credential.identityToken ?? '',
+          identity_token: credential.identityToken,
           authorization_code: credential.authorizationCode ?? '',
           raw_nonce: rawNonce,
         },

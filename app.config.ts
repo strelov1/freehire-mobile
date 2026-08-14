@@ -1,32 +1,8 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
-export const DEFAULT_DEVELOPMENT_API_BASE = 'http://localhost:8080';
+import { DEFAULT_DEVELOPMENT_API_BASE, normalizeApiBase } from './src/lib/apiBase';
 
-export function normalizeApiBase(value: string | undefined, allowLocalHttp: boolean): string {
-  const candidate = value?.trim() || (allowLocalHttp ? DEFAULT_DEVELOPMENT_API_BASE : '');
-  if (!candidate) {
-    throw new Error('EXPO_PUBLIC_API_BASE is required for preview and production builds');
-  }
-
-  let parsed: URL;
-  try {
-    parsed = new URL(candidate);
-  } catch {
-    throw new Error('EXPO_PUBLIC_API_BASE must be a valid URL origin');
-  }
-
-  const isLocalhost =
-    parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '10.0.2.2';
-  const allowedProtocol = parsed.protocol === 'https:' || (allowLocalHttp && isLocalhost && parsed.protocol === 'http:');
-  if (!allowedProtocol) {
-    throw new Error('EXPO_PUBLIC_API_BASE must use HTTPS (development may use localhost HTTP)');
-  }
-  if (parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) {
-    throw new Error('EXPO_PUBLIC_API_BASE must be an origin without credentials, path, query, or fragment');
-  }
-
-  return parsed.origin;
-}
+export { DEFAULT_DEVELOPMENT_API_BASE, normalizeApiBase };
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const profile = process.env.EAS_BUILD_PROFILE ?? 'development';
@@ -48,10 +24,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       bundleIdentifier: 'me.freehire.mobile',
       buildNumber: '1',
       usesAppleSignIn: true,
-      associatedDomains: [
-        'applinks:freehire.dev',
-        'applinks:freehire.me',
-      ],
+      // No `associatedDomains` yet: universal links need an
+      // apple-app-site-association file served from freehire.dev/freehire.me and
+      // an in-app route to receive them. The OAuth handshake returns through the
+      // `freehiremobile://auth-callback` scheme, which PKCE already protects.
       icon: {
         light: './assets/images/freehire-icon-light.png',
         dark: './assets/images/freehire-icon-dark.png',
@@ -71,17 +47,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         monochromeImage: './assets/images/android-icon-monochrome.png',
       },
       predictiveBackGestureEnabled: false,
-      intentFilters: [
-        {
-          action: 'VIEW',
-          autoVerify: true,
-          data: [
-            { scheme: 'https', host: 'freehire.dev', pathPrefix: '/api/v2/auth/oauth' },
-            { scheme: 'https', host: 'freehire.me', pathPrefix: '/api/v2/auth/oauth' },
-          ],
-          category: ['BROWSABLE', 'DEFAULT'],
-        },
-      ],
+      // No verified App Link filter for /api/v2/auth/oauth yet: with `autoVerify`
+      // on, Android would hand that redirect to the app mid-handshake, leaving
+      // `openAuthSessionAsync` waiting forever and the user on a route that does
+      // not exist. Reinstate it together with a route that completes the exchange.
     },
     web: {
       output: 'static',

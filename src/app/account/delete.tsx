@@ -99,7 +99,6 @@ export default function DeleteAccountScreen() {
             return;
           }
         } else {
-          setIsDeleting(false);
           return;
         }
       }
@@ -135,15 +134,16 @@ export default function DeleteAccountScreen() {
     try {
       if (!hasRecentAuth) {
         const authed = await promptReauth();
-        if (!authed) {
-          setIsDeleting(false);
-          return;
-        }
+        if (!authed) return;
       }
 
       await executeDeletion(user.email);
     } catch (err: unknown) {
       handleDeletionError(err);
+    } finally {
+      // Covers every exit — cancelled prompt, thrown reauth, handled failure —
+      // so the button can never stay stuck in its spinner.
+      setIsDeleting(false);
     }
   };
 

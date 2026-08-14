@@ -28,15 +28,6 @@ export async function getProfile(signal?: AbortSignal): Promise<UserProfile | nu
   return data;
 }
 
-/** In-app account deletion for App Store compliance. */
-export async function deleteAccount(signal?: AbortSignal): Promise<void> {
-  await request<void>('/api/v1/me', {
-    method: 'DELETE',
-    authMode: 'required',
-    signal,
-  });
-}
-
 // --- Saved jobs (session-scoped) --------------------------------------------
 
 export async function saveJob(slug: string, sessionEpoch: number, signal?: AbortSignal): Promise<UserJob> {

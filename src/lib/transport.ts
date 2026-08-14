@@ -43,6 +43,18 @@ export function subscribeUnauthorized(listener: UnauthorizedListener): () => voi
   return () => unauthorizedListeners.delete(listener);
 }
 
+/**
+ * The epoch a request is stamped with when its caller does not pass one. Callers
+ * that thread the epoch explicitly still win; this only stops a required-auth
+ * request from silently skipping the unauthorized signal, which used to leave an
+ * expired session looking signed in with no data behind it.
+ */
+let ambientSessionEpoch = 0;
+
+export function setAmbientSessionEpoch(epoch: number) {
+  ambientSessionEpoch = epoch;
+}
+
 function publishUnauthorized(event: UnauthorizedEvent) {
   for (const listener of unauthorizedListeners) {
     try {
@@ -214,8 +226,8 @@ export async function request<T>(path: string, options: RequestOptions): Promise
         retryAfterSeconds: response.status === 429 ? parseRetryAfter(response.headers.get('retry-after')) : undefined,
         retryable: response.status === 429 || response.status >= 500,
       });
-      if (response.status === 401 && options.authMode === 'required' && options.sessionEpoch !== undefined) {
-        publishUnauthorized({ endpoint: path, sessionEpoch: options.sessionEpoch });
+      if (response.status === 401 && options.authMode === 'required') {
+        publishUnauthorized({ endpoint: path, sessionEpoch: options.sessionEpoch ?? ambientSessionEpoch });
       }
       throw error;
     }

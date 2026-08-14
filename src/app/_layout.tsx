@@ -99,9 +99,9 @@ export default function RootLayout() {
                       bar's region shortcut, distinct from the full Filters
                       modal above. */}
                   <Stack.Screen name="filters/quick" options={{ headerShown: false, presentation: 'modal' }} />
+                  {/* One sheet for sign in, register, forgot and reset — the mode
+                      rides in as `?mode=`, so a reset deep link lands here too. */}
                   <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'modal' }} />
-                  <Stack.Screen name="auth/forgot" options={{ headerShown: false, presentation: 'modal' }} />
-                  <Stack.Screen name="auth/reset" options={{ headerShown: false, presentation: 'modal' }} />
                   {/* Account screens */}
                   <Stack.Screen name="account/index" options={{ headerShown: false }} />
                   <Stack.Screen name="account/security" options={{ headerShown: false }} />

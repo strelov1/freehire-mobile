@@ -130,7 +130,14 @@ export default function SecurityScreen() {
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         if (err.status === 401) {
-          setPasswordError('Current password is incorrect.');
+          // A 401 here is either a wrong current password or a session that
+          // expired mid-edit — and the second case has already signed the user
+          // out through the transport's unauthorized channel.
+          setPasswordError(
+            err.code === 'invalid_credentials'
+              ? 'Current password is incorrect.'
+              : 'Current password is incorrect, or your session expired. Sign in and try again.',
+          );
         } else if (err.status === 428) {
           // Reauth required catch
           clearRecentAuth();
@@ -394,7 +401,7 @@ export default function SecurityScreen() {
                   You currently sign in with connected social accounts and do not have a password set.
                 </Text>
                 <Pressable
-                  onPress={() => router.push('/auth/forgot')}
+                  onPress={() => router.push('/auth?mode=forgot')}
                   style={({ pressed }) => [
                     styles.secondaryButton,
                     { borderColor: c.border, backgroundColor: c.background },

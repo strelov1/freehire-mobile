@@ -241,7 +241,7 @@ describe('SecurityScreen (src/app/account/security.tsx)', () => {
       setupBtn.props.onPress();
     });
 
-    expect(router.push).toHaveBeenCalledWith('/auth/forgot');
+    expect(router.push).toHaveBeenCalledWith('/auth?mode=forgot');
   });
 
   it('prompts confirmation and executes identity unlinking', async () => {

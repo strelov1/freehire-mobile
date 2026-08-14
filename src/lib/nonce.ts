@@ -1,5 +1,7 @@
 import * as Crypto from 'expo-crypto';
 
+import { secureRandomBytes } from './secureRandom';
+
 /**
  * Converts a Uint8Array byte array into a lowercase hexadecimal string.
  */
@@ -20,18 +22,7 @@ export function bytesToHex(bytes: Uint8Array): string {
  * @returns {string} 64-character hex string
  */
 export function generateNonce(): string {
-  let bytes: Uint8Array;
-  if (typeof Crypto.getRandomBytes === 'function') {
-    bytes = Crypto.getRandomBytes(32);
-  } else if (typeof globalThis.crypto?.getRandomValues === 'function') {
-    bytes = globalThis.crypto.getRandomValues(new Uint8Array(32));
-  } else {
-    bytes = new Uint8Array(32);
-    for (let i = 0; i < 32; i++) {
-      bytes[i] = Math.floor(Math.random() * 256);
-    }
-  }
-  return bytesToHex(bytes);
+  return bytesToHex(secureRandomBytes(32));
 }
 
 /**
@@ -61,8 +52,13 @@ export async function sha256Hex(input: string): Promise<string> {
     const encoder = new TextEncoder();
     const data = encoder.encode(input);
     const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', data);
-    hexDigest = bytesToHex(new Uint8Array(hashBuffer));
-    return hexDigest.toLowerCase();
+    return bytesToHex(new Uint8Array(hashBuffer)).toLowerCase();
+  }
+
+  // Apple binds the credential to whatever nonce we hand it; an empty digest
+  // here would ship a credential nobody can verify against the raw nonce.
+  if (!hexDigest) {
+    throw new Error('No SHA-256 implementation is available to compute the Apple nonce challenge');
   }
 
   return hexDigest.toLowerCase();

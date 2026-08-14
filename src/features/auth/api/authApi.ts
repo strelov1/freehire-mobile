@@ -59,9 +59,8 @@ export const authApi = {
   async exchangeOAuth(code: string, signal?: AbortSignal): Promise<User> {
     return (await call<Data<User>>(authEndpoints.oauthExchange, { code }, signal)).data;
   },
-  async deleteAccount(email?: string, signal?: AbortSignal, sessionEpoch?: number): Promise<void> {
-    await call<void>(authEndpoints.deleteAccount, email ? { email } : undefined, signal, sessionEpoch);
-  },
+  // Account deletion lives in authV2Api: it is recent-auth gated and shares that
+  // module's (email, sessionEpoch, signal) argument order.
 };
 
 const SAFE_MESSAGES: Record<string, string> = {
