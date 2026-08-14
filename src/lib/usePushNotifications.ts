@@ -37,7 +37,7 @@ export function usePushNotifications() {
 
   const { data: devices, isPending } = useQuery({
     queryKey: ['push', 'devices'],
-    queryFn: listPushDevices,
+    queryFn: ({ signal }) => listPushDevices(signal),
     enabled: !!user,
   });
 

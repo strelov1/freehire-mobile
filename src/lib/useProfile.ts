@@ -12,7 +12,7 @@ export function useProfile() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ['profile'],
-    queryFn: getProfile,
+    queryFn: ({ signal }) => getProfile(signal),
     enabled: !!user,
   });
 }

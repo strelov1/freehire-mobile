@@ -1,7 +1,7 @@
 import { type InfiniteData, useQueryClient } from '@tanstack/react-query';
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import type { SFSymbol } from 'expo-symbols';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppSymbol } from '@/components/AppSymbol';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { markNotificationRead } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
@@ -63,7 +64,7 @@ function NotificationCard({
         pressed && { opacity: 0.7 },
       ]}>
       <View style={[styles.iconWrap, { backgroundColor: c.card }]}>
-        <SymbolView name={meta.icon} size={18} tintColor={c.mutedForeground} />
+        <AppSymbol name={meta.icon} size={18} tintColor={c.mutedForeground} />
       </View>
 
       <View style={styles.body}>
@@ -148,7 +149,7 @@ export default function NotificationsScreen() {
     } else if (item.jobs && item.jobs.length > 0) {
       // A multi-job digest carries no single slug — its own jobs-list screen
       // shows the snapshot recorded at delivery instead.
-      router.push(`/notifications/${item.id}`);
+      router.push({ pathname: '/notifications/[id]', params: { id: item.id } });
     }
   }
 
@@ -174,7 +175,7 @@ export default function NotificationsScreen() {
   } else if (items.length === 0) {
     body = (
       <View style={[styles.fill, styles.center]}>
-        <SymbolView name="bell" size={32} tintColor={c.mutedForeground} />
+        <AppSymbol name="bell" size={32} tintColor={c.mutedForeground} />
         <Text style={[styles.stateText, { color: c.mutedForeground }]}>
           No notifications yet.
         </Text>

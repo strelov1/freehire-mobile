@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { getJob } from './api';
+import { publicKeys } from './queryKeys';
 
 /**
  * A single job by slug for the detail screen. Keyed on the slug so navigating
@@ -9,8 +10,8 @@ import { getJob } from './api';
  */
 export function useJob(slug: string | undefined) {
   return useQuery({
-    queryKey: ['jobs', 'detail', slug],
-    queryFn: () => getJob(slug as string),
+    queryKey: publicKeys.jobs.detail(slug),
+    queryFn: ({ signal }) => getJob(slug as string, signal),
     enabled: !!slug,
   });
 }

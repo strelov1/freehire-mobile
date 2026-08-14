@@ -297,7 +297,7 @@ export function companyFacts(company: Company): Facet[] {
   one('Type', company.organization_type);
   one('Stage', info.stage);
   if (info.funding?.type || info.funding?.amount) {
-    const amount = info.funding.amount ? `$${info.funding.amount.toLocaleString()}` : null;
+    const amount = info.funding.amount ? `$${info.funding.amount.toLocaleString('en-US')}` : null;
     facts.push({ label: 'Funding', values: [info.funding.type, amount].filter((v): v is string => !!v) });
   }
   if (info.stock?.symbol) {

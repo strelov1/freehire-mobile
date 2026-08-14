@@ -13,10 +13,10 @@
  */
 
 import Constants from 'expo-constants';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { unregisterPushToken } from './api';
+import { getNotifications, type NotificationResponse } from './notifications';
 import type { PushDevice, TestPushResult } from './types';
 
 /** Whether this device's token is one of the user's registered devices. Another
@@ -72,19 +72,22 @@ export function pushPlatform(): 'ios' | 'android' | null {
  * flipping the switch, not something a screen does on open.
  */
 export async function getPushToken(prompt: boolean): Promise<string | null> {
+  const notifs = getNotifications();
+  if (!notifs) return null;
+
   if (pushPlatform() === null) return null;
 
-  let { granted } = await Notifications.getPermissionsAsync();
+  let { granted } = await notifs.getPermissionsAsync();
   if (!granted && prompt) {
-    granted = (await Notifications.requestPermissionsAsync()).granted;
+    granted = (await notifs.requestPermissionsAsync()).granted;
   }
   if (!granted) return null;
 
   // Android delivers only through a channel; without one, a push arrives silently.
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
+    await notifs.setNotificationChannelAsync('default', {
       name: 'Job alerts',
-      importance: Notifications.AndroidImportance.DEFAULT,
+      importance: notifs.AndroidImportance.DEFAULT,
     });
   }
 
@@ -93,7 +96,7 @@ export async function getPushToken(prompt: boolean): Promise<string | null> {
   if (!projectId) return null;
 
   try {
-    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+    const { data } = await notifs.getExpoPushTokenAsync({ projectId });
     return data;
   } catch {
     return null;
@@ -123,7 +126,7 @@ export async function unregisterThisDevice(): Promise<void> {
  * several matches carries none, and a tap on it should just foreground the
  * app rather than guess which job to open.
  */
-export function jobSlugFromResponse(response: Notifications.NotificationResponse): string | null {
+export function jobSlugFromResponse(response: NotificationResponse): string | null {
   const slug = response.notification.request.content.data?.slug;
   return typeof slug === 'string' && slug.length > 0 ? slug : null;
 }

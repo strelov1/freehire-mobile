@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppSymbol } from '@/components/AppSymbol';
 import { Chip } from '@/components/Chip';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useFilters } from '@/lib/filterStore';
@@ -67,7 +67,7 @@ export default function QuickFiltersScreen() {
           onPress={() => router.back()}
           hitSlop={12}
           style={({ pressed }) => pressed && { opacity: 0.5 }}>
-          <SymbolView name="xmark" size={20} weight="semibold" tintColor={c.foreground} />
+          <AppSymbol name="xmark" size={20} weight="semibold" tintColor={c.foreground} />
         </Pressable>
       </View>
 

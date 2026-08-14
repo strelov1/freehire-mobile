@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
-import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+import type { SFSymbol } from 'expo-symbols';
 import { memo, useMemo, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
+import { AppSymbol } from '@/components/AppSymbol';
 import { CompanyLogo } from '@/components/CompanyLogo';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useAuth } from '@/lib/authStore';
@@ -32,7 +33,7 @@ function SwipeAction({
 }: {
   tint: string;
   background: string;
-  icon: SymbolViewProps['name'];
+  icon: SFSymbol | string;
   label: string;
   onPress: () => void;
 }) {
@@ -44,7 +45,7 @@ function SwipeAction({
         accessibilityRole="button"
         accessibilityLabel={label}
         style={({ pressed }) => pressed && { opacity: 0.6 }}>
-        <SymbolView name={icon} size={22} tintColor={tint} />
+        <AppSymbol name={icon} size={22} tintColor={tint} />
       </Pressable>
     </View>
   );
@@ -148,7 +149,7 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
             <CompanyLogo name={job.company || '?'} size={28} />
             {job.company_slug ? (
               <Pressable
-                onPress={() => router.push(`/companies/${job.company_slug}`)}
+                onPress={() => router.push({ pathname: '/companies/[slug]', params: { slug: job.company_slug! } })}
                 hitSlop={4}
                 style={styles.companyTextWrap}>
                 <Text numberOfLines={1} style={[styles.company, { color: c.mutedForeground }]}>

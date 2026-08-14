@@ -1,9 +1,10 @@
 import { Tabs, type BottomTabBarProps } from 'expo-router/tabs';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import type { SFSymbol } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import { AppSymbol } from '@/components/AppSymbol';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useTabBarVisibility } from '@/lib/tabBarStore';
 import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
@@ -86,7 +87,7 @@ function AnimatedTabBar({ state, navigation, insets }: BottomTabBarProps) {
             accessibilityState={focused ? { selected: true } : {}}
             accessibilityLabel={meta.label}>
             <View>
-              <SymbolView name={focused ? meta.iconFilled : meta.icon} size={21} tintColor={tint} />
+              <AppSymbol name={focused ? meta.iconFilled : meta.icon} size={21} tintColor={tint} />
               {badge != null ? (
                 <View style={[styles.badge, { backgroundColor: c.brand }]}>
                   <Text style={[styles.badgeText, { color: c.brandForeground }]}>{badge}</Text>

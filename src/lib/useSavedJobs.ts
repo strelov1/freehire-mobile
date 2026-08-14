@@ -3,45 +3,69 @@ import { useMemo } from 'react';
 
 import { saveJob, savedSlugs, unsaveJob } from './api';
 import { useAuth } from './authStore';
+import { privateKeys } from './queryKeys';
+import type { SessionOwner } from '@/features/auth/model/authTypes';
 
-/**
- * The signed-in user's saved-job set plus a toggle. The saved slugs are fetched
- * once (keyed `['saved']`, shared across every card) and only when signed in.
- * Toggling is optimistic: the bookmark flips immediately and rolls back if the
- * request fails, then reconciles against the server. Signed out, `ready` is
- * false and the caller should route to the auth modal instead of toggling.
- */
+type ToggleVariables = {
+  slug: string;
+  saved: boolean;
+  owner: SessionOwner;
+  transport: { signal: AbortSignal; release: () => void };
+};
+
 export function useSavedJobs() {
-  const { user } = useAuth();
-  const qc = useQueryClient();
+  const { user, sessionEpoch, isOwnerCurrent, createPrivateMutation } = useAuth();
+  const queryClient = useQueryClient();
+  const queryKey = user ? privateKeys.savedJobs(user.id) : privateKeys.signedOutSavedJobs;
 
   const { data } = useQuery({
-    queryKey: ['saved'],
-    queryFn: savedSlugs,
+    queryKey,
+    queryFn: ({ signal }) => savedSlugs(sessionEpoch, signal),
     enabled: !!user,
     staleTime: 30_000,
   });
-
   const savedSet = useMemo(() => new Set(data ?? []), [data]);
 
   const mutation = useMutation({
-    mutationFn: ({ slug, saved }: { slug: string; saved: boolean }) =>
-      saved ? unsaveJob(slug) : saveJob(slug),
-    onMutate: async ({ slug, saved }) => {
-      await qc.cancelQueries({ queryKey: ['saved'] });
-      const previous = qc.getQueryData<string[]>(['saved']) ?? [];
-      qc.setQueryData<string[]>(['saved'], saved ? previous.filter((s) => s !== slug) : [...previous, slug]);
-      return { previous };
+    mutationFn: ({ slug, saved, owner, transport }: ToggleVariables) =>
+      saved
+        ? unsaveJob(slug, owner.sessionEpoch, transport.signal)
+        : saveJob(slug, owner.sessionEpoch, transport.signal),
+    onMutate: async (variables) => {
+      if (!isOwnerCurrent(variables.owner)) return;
+      const ownedKey = privateKeys.savedJobs(variables.owner.userId);
+      await queryClient.cancelQueries({ queryKey: ownedKey, exact: true });
+      if (!isOwnerCurrent(variables.owner)) return;
+      const previous = queryClient.getQueryData<string[]>(ownedKey) ?? [];
+      queryClient.setQueryData<string[]>(
+        ownedKey,
+        variables.saved ? previous.filter((slug) => slug !== variables.slug) : [...new Set([...previous, variables.slug])],
+      );
+      return { previous, owner: variables.owner };
     },
-    onError: (_err, _vars, ctx) => {
-      if (ctx) qc.setQueryData(['saved'], ctx.previous); // roll back
+    onError: (_error, _variables, context) => {
+      if (context && isOwnerCurrent(context.owner)) {
+        queryClient.setQueryData(privateKeys.savedJobs(context.owner.userId), context.previous);
+      }
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['saved'] }),
+    onSettled: (_data, _error, variables) => {
+      variables.transport.release();
+      if (isOwnerCurrent(variables.owner)) {
+        void queryClient.invalidateQueries({
+          queryKey: privateKeys.savedJobs(variables.owner.userId),
+          exact: true,
+        });
+      }
+    },
   });
 
   return {
     ready: !!user,
     isSaved: (slug: string) => savedSet.has(slug),
-    toggle: (slug: string, saved: boolean) => mutation.mutate({ slug, saved }),
+    toggle: (slug: string, saved: boolean) => {
+      if (!user) return;
+      const owner = { userId: user.id, sessionEpoch };
+      mutation.mutate({ slug, saved, owner, transport: createPrivateMutation(owner) });
+    },
   };
 }

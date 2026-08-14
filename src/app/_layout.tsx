@@ -1,5 +1,4 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter } from 'expo-router';
-import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect } from 'react';
@@ -10,23 +9,23 @@ import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { getColors } from '@/constants/freehire';
 import { AuthProvider } from '@/lib/authStore';
 import { FilterProvider } from '@/lib/filterStore';
+import { getNotifications } from '@/lib/notifications';
 import { jobSlugFromResponse } from '@/lib/push';
 import { TabBarVisibilityProvider } from '@/lib/tabBarStore';
 
 SplashScreen.preventAutoHideAsync();
 
-// A push that lands while the app is open is still worth seeing, so it is shown
-// as a banner rather than swallowed. No sound and no badge: a job alert doesn't
-// warrant interrupting someone already reading the feed, and nothing in the app
-// clears a badge — setting one would strand a number on the icon forever.
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+const notifs = getNotifications();
+if (notifs) {
+  notifs.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 // One client for the app's lifetime. `staleTime` keeps the feed from refetching
 // the moment you switch tabs and back — job listings don't change second-to-second.
@@ -36,23 +35,20 @@ const queryClient = new QueryClient({
   },
 });
 
-// A tapped push with a job slug in its data opens that job directly; one with
-// none (e.g. a subscription digest matching several jobs) just foregrounds the
-// app, which is the OS/expo-router default and needs no code here. Covers both
-// a tap while the app is already running (the listener) and a tap that cold-
-// starts the app (the one-time getLastNotificationResponseAsync check) —
-// otherwise the deep link would only work for half of how a push gets tapped.
 function useNotificationDeepLink() {
   const router = useRouter();
 
   useEffect(() => {
-    Notifications.getLastNotificationResponseAsync().then((response) => {
+    const activeNotifs = getNotifications();
+    if (!activeNotifs) return;
+
+    activeNotifs.getLastNotificationResponseAsync().then((response) => {
       if (!response) return;
       const slug = jobSlugFromResponse(response);
       if (slug) router.push(`/jobs/${slug}`);
     });
 
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+    const sub = activeNotifs.addNotificationResponseReceivedListener((response) => {
       const slug = jobSlugFromResponse(response);
       if (slug) router.push(`/jobs/${slug}`);
     });

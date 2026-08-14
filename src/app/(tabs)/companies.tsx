@@ -1,7 +1,7 @@
-import { SymbolView } from 'expo-symbols';
 import { StyleSheet, Text, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppSymbol } from '@/components/AppSymbol';
 import { getColors, Space } from '@/constants/freehire';
 
 /**
@@ -15,7 +15,7 @@ export default function CompaniesScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.fill, styles.center, { backgroundColor: c.background }]}>
-      <SymbolView name="building.2" size={40} tintColor={c.mutedForeground} />
+      <AppSymbol name="building.2" size={40} tintColor={c.mutedForeground} />
       <Text style={[styles.title, { color: c.foreground }]}>Companies</Text>
       <Text style={[styles.subtitle, { color: c.mutedForeground }]}>Coming soon.</Text>
     </SafeAreaView>

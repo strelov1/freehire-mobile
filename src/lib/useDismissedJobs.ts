@@ -17,7 +17,7 @@ export function useDismissedJobs() {
 
   const { data } = useQuery({
     queryKey: ['dismissed'],
-    queryFn: dismissedSlugs,
+    queryFn: ({ signal }) => dismissedSlugs(signal),
     enabled: !!user,
     staleTime: 30_000,
   });

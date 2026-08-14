@@ -1,6 +1,5 @@
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
 import {
   ActivityIndicator,
@@ -14,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppSymbol } from '@/components/AppSymbol';
 import { JobCard } from '@/components/JobCard';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useDismissedJobs } from '@/lib/useDismissedJobs';
@@ -74,9 +74,9 @@ export default function FeedScreen() {
             { borderRightColor: c.border },
             pressed && { opacity: 0.6 },
           ]}>
-          <SymbolView name="globe" size={17} tintColor={regionTint} />
+          <AppSymbol name="globe" size={17} tintColor={regionTint} />
         </Pressable>
-        <SymbolView name="magnifyingglass" size={17} tintColor={c.mutedForeground} />
+        <AppSymbol name="magnifyingglass" size={17} tintColor={c.mutedForeground} />
         <TextInput
           value={filters.q}
           onChangeText={setQuery}
@@ -89,7 +89,7 @@ export default function FeedScreen() {
         />
         {filters.q.length > 0 ? (
           <Pressable onPress={() => setQuery('')} hitSlop={8}>
-            <SymbolView name="xmark.circle.fill" size={16} tintColor={c.mutedForeground} />
+            <AppSymbol name="xmark.circle.fill" size={16} tintColor={c.mutedForeground} />
           </Pressable>
         ) : null}
         <Pressable
@@ -100,7 +100,7 @@ export default function FeedScreen() {
             { borderLeftColor: c.border },
             pressed && { opacity: 0.6 },
           ]}>
-          <SymbolView
+          <AppSymbol
             name="slider.horizontal.3"
             size={18}
             tintColor={activeCount > 0 ? c.brandStrong : c.foreground}

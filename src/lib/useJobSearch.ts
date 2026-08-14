@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 import { facetCounts, searchJobs } from './api';
+import { publicKeys } from './queryKeys';
 
 const PAGE_SIZE = 20;
 
@@ -13,9 +14,9 @@ const PAGE_SIZE = 20;
  */
 export function useJobSearch(appliedQuery: string) {
   return useInfiniteQuery({
-    queryKey: ['jobs', 'search', appliedQuery],
+    queryKey: publicKeys.jobs.search(appliedQuery),
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => searchJobs(appliedQuery, PAGE_SIZE, pageParam),
+    queryFn: ({ pageParam, signal }) => searchJobs(appliedQuery, PAGE_SIZE, pageParam, signal),
     getNextPageParam: (lastPage) => {
       const loaded = lastPage.meta.offset + lastPage.data.length;
       return loaded < lastPage.meta.total ? loaded : undefined;
@@ -31,8 +32,8 @@ export function useJobSearch(appliedQuery: string) {
  */
 export function useFacetCounts(stagedQuery: string) {
   return useQuery({
-    queryKey: ['facets', stagedQuery],
-    queryFn: () => facetCounts(stagedQuery),
+    queryKey: publicKeys.facets(stagedQuery),
+    queryFn: ({ signal }) => facetCounts(stagedQuery, signal),
     placeholderData: (prev) => prev,
   });
 }

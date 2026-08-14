@@ -1,9 +1,18 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useColorScheme,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppSymbol } from '@/components/AppSymbol';
 import { useAuth } from '@/lib/authStore';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { facetValueLabel, formatDate, profileLocationSummary } from '@/lib/format';
@@ -31,30 +40,89 @@ function ChipRow({ c, values }: { c: ReturnType<typeof getColors>; values: strin
 
 /**
  * The Profile tab: a signed-in user's identity, a read-only view of their
- * saved profile (specializations, skills, location), and a sign-out button.
- * Signed out, it shows an inline "Sign in" prompt instead of redirecting —
- * the tab itself is always a valid destination.
+ * saved profile (specializations, skills, location), account deletion, and sign-out buttons.
+ * Signed out, it shows an inline "Sign in" prompt instead of redirecting.
  */
 export default function ProfileScreen() {
   const c = getColors(useColorScheme());
-  const { user, signOut } = useAuth();
+  const { user, state, signOut, logoutAll, deleteAccount, recordReturnIntent, retryBootstrap } = useAuth();
   const { data: profile, isLoading: profileLoading, isError: profileError } = useProfile();
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<'signOut' | 'logoutAll' | 'delete' | null>(null);
 
   async function onSignOut() {
-    setBusy(true);
-    await signOut();
+    setBusy('signOut');
+    try {
+      await signOut();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function onLogoutAll() {
+    setBusy('logoutAll');
+    try {
+      await logoutAll();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function confirmDeleteAccount() {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to permanently delete your account? This action cannot be undone and will delete all your data.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setBusy('delete');
+            try {
+              await deleteAccount();
+            } catch (err) {
+              Alert.alert('Error', (err as Error)?.message ?? 'Could not delete account. Please try again.');
+            } finally {
+              setBusy(null);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  if (state.status === 'unavailable') {
+    return (
+      <SafeAreaView edges={['top']} style={[styles.fill, styles.center, { backgroundColor: c.background }]}>
+        <AppSymbol name="wifi.slash" size={48} tintColor={c.mutedForeground} />
+        <Text style={[styles.stateText, { color: c.mutedForeground }]}>
+          Authentication service temporarily unavailable.
+        </Text>
+        <Pressable
+          onPress={() => void retryBootstrap()}
+          style={({ pressed }) => [
+            styles.signIn,
+            { backgroundColor: c.brand },
+            pressed && { opacity: 0.85 },
+          ]}>
+          <Text style={[styles.signInText, { color: c.brandForeground }]}>Retry</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
   }
 
   if (!user) {
     return (
       <SafeAreaView edges={['top']} style={[styles.fill, styles.center, { backgroundColor: c.background }]}>
-        <SymbolView name="person.crop.circle" size={56} tintColor={c.mutedForeground} />
+        <AppSymbol name="person.crop.circle" size={56} tintColor={c.mutedForeground} />
         <Text style={[styles.stateText, { color: c.mutedForeground }]}>
           Sign in to see your profile.
         </Text>
         <Pressable
-          onPress={() => router.push('/auth')}
+          onPress={() => {
+            recordReturnIntent({ kind: 'navigate', destination: 'account' });
+            router.push('/auth');
+          }}
           style={({ pressed }) => [
             styles.signIn,
             { backgroundColor: c.brand },
@@ -77,7 +145,7 @@ export default function ProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.identity}>
-          <SymbolView name="person.crop.circle.fill" size={56} tintColor={c.brandStrong} />
+          <AppSymbol name="person.crop.circle.fill" size={56} tintColor={c.brandStrong} />
           <Text style={[styles.email, { color: c.foreground }]} numberOfLines={1}>
             {user.email}
           </Text>
@@ -125,16 +193,45 @@ export default function ProfileScreen() {
       <View style={styles.footer}>
         <Pressable
           onPress={onSignOut}
-          disabled={busy}
+          disabled={busy !== null}
           style={({ pressed }) => [
-            styles.signOut,
+            styles.actionButton,
             { borderColor: c.border, backgroundColor: c.card },
             pressed && { backgroundColor: c.accent },
           ]}>
-          {busy ? (
+          {busy === 'signOut' ? (
             <ActivityIndicator color={c.mutedForeground} />
           ) : (
-            <Text style={[styles.signOutText, { color: c.foreground }]}>Sign out</Text>
+            <Text style={[styles.actionButtonText, { color: c.foreground }]}>Sign out</Text>
+          )}
+        </Pressable>
+
+        <Pressable
+          onPress={onLogoutAll}
+          disabled={busy !== null}
+          style={({ pressed }) => [
+            styles.actionButton,
+            { borderColor: c.border, backgroundColor: c.card },
+            pressed && { backgroundColor: c.accent },
+          ]}>
+          {busy === 'logoutAll' ? (
+            <ActivityIndicator color={c.mutedForeground} />
+          ) : (
+            <Text style={[styles.actionButtonText, { color: c.foreground }]}>Sign out of all devices</Text>
+          )}
+        </Pressable>
+
+        <Pressable
+          onPress={confirmDeleteAccount}
+          disabled={busy !== null}
+          style={({ pressed }) => [
+            styles.deleteButton,
+            pressed && { opacity: 0.7 },
+          ]}>
+          {busy === 'delete' ? (
+            <ActivityIndicator color={c.destructive} />
+          ) : (
+            <Text style={[styles.deleteButtonText, { color: c.destructive }]}>Delete Account</Text>
           )}
         </Pressable>
       </View>
@@ -227,18 +324,28 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: Space.lg,
-    // Clears the custom bottom tab bar so the sign-out button isn't hidden behind it.
     paddingBottom: Space.lg + TAB_BAR_HEIGHT,
+    gap: Space.sm,
   },
-  signOut: {
+  actionButton: {
     borderWidth: 1,
     borderRadius: Radius.lg,
-    height: 50,
+    height: 46,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  signOutText: {
-    fontSize: 16,
+  actionButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Space.xs,
+  },
+  deleteButtonText: {
+    fontSize: 14,
     fontWeight: '600',
   },
 });

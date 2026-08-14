@@ -1,9 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import * as WebBrowser from 'expo-web-browser';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppSymbol } from '@/components/AppSymbol';
 import { CompanyLogo } from '@/components/CompanyLogo';
 import { JobCard } from '@/components/JobCard';
 import { getColors, Radius, Space } from '@/constants/freehire';
@@ -21,7 +21,7 @@ function BackButton({ color }: { color: string }) {
       hitSlop={12}
       onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
       style={({ pressed }) => [styles.back, pressed && { opacity: 0.5 }]}>
-      <SymbolView name="chevron.left" size={22} weight="semibold" tintColor={color} />
+      <AppSymbol name="chevron.left" size={22} weight="semibold" tintColor={color} />
     </Pressable>
   );
 }
@@ -141,7 +141,7 @@ export default function CompanyScreen() {
 
         {rating ? (
           <View style={styles.iconRow}>
-            <SymbolView name="star.fill" size={14} tintColor={c.foreground} />
+            <AppSymbol name="star.fill" size={14} tintColor={c.foreground} />
             <Text style={[styles.rating, { color: c.foreground }]}>{rating}</Text>
           </View>
         ) : null}
@@ -149,9 +149,9 @@ export default function CompanyScreen() {
         {/* Static thumbs counters — read-only in v1, no vote buttons. */}
         {company.upvote_count > 0 || company.downvote_count > 0 ? (
           <View style={styles.iconRow}>
-            <SymbolView name="hand.thumbsup" size={14} tintColor={c.mutedForeground} />
+            <AppSymbol name="hand.thumbsup" size={14} tintColor={c.mutedForeground} />
             <Text style={[styles.votes, { color: c.mutedForeground }]}>{company.upvote_count}</Text>
-            <SymbolView name="hand.thumbsdown" size={14} tintColor={c.mutedForeground} />
+            <AppSymbol name="hand.thumbsdown" size={14} tintColor={c.mutedForeground} />
             <Text style={[styles.votes, { color: c.mutedForeground }]}>{company.downvote_count}</Text>
           </View>
         ) : null}

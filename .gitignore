@@ -31,8 +31,10 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# local env files (Expo public values are still environment-specific)
+.env
+.env.*
+!.env.example
 
 # typescript
 *.tsbuildinfo

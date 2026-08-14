@@ -1,136 +1,238 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { AppState } from 'react-native';
 
+import { authApi } from '@/features/auth/api/authApi';
+import type { AuthCompletion, SessionOwner, SessionState } from '@/features/auth/model/authTypes';
 import {
-  exchangeOAuth,
-  login as apiLogin,
-  logout as apiLogout,
-  me,
-  oauthProviders,
-  oauthStartUrl,
-  register as apiRegister,
-} from './api';
+  ReturnIntentManager,
+  type ReturnIntent,
+  type ReturnIntentSnapshot,
+} from '@/features/auth/model/returnIntent';
+import { SessionCoordinator } from '@/features/auth/session/sessionCoordinator';
+
 import { codeFromCallbackUrl } from './oauth';
 import { unregisterThisDevice } from './push';
+import { PrivateMutationRegistry, clearPrivateUserData, privateKeys, publicKeys } from './queryKeys';
+import { saveJob } from './api';
+import { subscribeUnauthorized } from './transport';
 import type { User } from './types';
 
-/** The custom scheme the backend redirects to at the end of the mobile OAuth
- *  flow; `openAuthSessionAsync` resolves once the browser hits it. */
 const OAUTH_CALLBACK = 'freehiremobile://auth-callback';
 
-/**
- * The signed-in user, shared app-wide. The session itself lives in React
- * Native's native cookie jar (fetch stores the `hire_token` cookie from
- * login/register and re-sends it), so this store only mirrors *who* is signed in
- * — it never holds the token. On mount it asks `/auth/me`; a 401 simply means
- * signed out. Sign-in/out refresh the saved-jobs cache so bookmarks reflect the
- * new identity immediately.
- */
-
 type AuthContextValue = {
+  state: SessionState;
   user: User | null;
-  loading: boolean; // the initial /me probe is in flight
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
-  /** Social sign-in. Resolves `true` once signed in, `false` if the user
-   *  cancelled (a quiet no-op); throws on a provider error or a failed code
-   *  exchange (the caller shows the message). */
-  signInWithProvider: (provider: string) => Promise<boolean>;
+  loading: boolean;
+  sessionEpoch: number;
+  returnIntent: ReturnIntentSnapshot;
+  signIn: (email: string, password: string) => Promise<AuthCompletion>;
+  signUp: (email: string, password: string) => Promise<AuthCompletion>;
+  signInWithProvider: (provider: string) => Promise<AuthCompletion>;
   signOut: () => Promise<void>;
+  logoutAll: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
+  retryBootstrap: () => Promise<void>;
+  revalidate: () => Promise<void>;
+  recordReturnIntent: (intent: ReturnIntent) => boolean;
+  clearReturnIntent: () => void;
+  retryReturnIntent: () => Promise<'none' | 'completed' | 'failed'>;
+  isOwnerCurrent: (owner: SessionOwner) => boolean;
+  createPrivateMutation: (owner: SessionOwner) => { signal: AbortSignal; release: () => void };
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function visibleUser(state: SessionState): User | null {
+  if (state.status === 'authenticated' || state.status === 'refreshing' || state.status === 'signingOut') {
+    return state.user;
+  }
+  return null;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
+  const [state, setState] = useState<SessionState>({ status: 'bootstrapping' });
+  const [sessionEpoch, setSessionEpoch] = useState(0);
+  const [returnIntent, setReturnIntent] = useState<ReturnIntentSnapshot>({ status: 'empty' });
+  const [returnIntents] = useState(() => new ReturnIntentManager());
+  const [mutationRegistry] = useState(() => new PrivateMutationRegistry());
+  const [coordinator] = useState(() => {
+    let instance!: SessionCoordinator;
+    instance = new SessionCoordinator({
+      api: authApi,
+      returnIntents,
+      onStateChange: (nextState) => {
+        setState(nextState);
+        setSessionEpoch(instance.getSessionEpoch());
+      },
+      transitionIdentity: async (previousUserId) => {
+        if (previousUserId === undefined) return;
+        await clearPrivateUserData(queryClient, mutationRegistry, previousUserId);
+      },
+      executeReturnIntent: async (intent, user, epoch) => {
+        if (intent.kind === 'navigate') {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace('/profile');
+          }
+          return;
+        }
+        const transport = mutationRegistry.create(user.id, epoch);
+        try {
+          await saveJob(intent.jobSlug, epoch, transport.signal);
+          if (!instance.isOwnerCurrent(user.id, epoch)) return;
+          queryClient.setQueryData<string[]>(privateKeys.savedJobs(user.id), (previous = []) =>
+            previous.includes(intent.jobSlug) ? previous : [...previous, intent.jobSlug],
+          );
+          if (router.canGoBack()) {
+            router.back();
+          } else if (intent.fallbackDestination === 'job') {
+            router.replace({ pathname: '/jobs/[slug]', params: { slug: intent.jobSlug } });
+          } else {
+            router.replace('/');
+          }
+        } finally {
+          transport.release();
+        }
+      },
+      openOAuth: async (provider) => {
+        const result = await WebBrowser.openAuthSessionAsync(authApi.oauthStartUrl(provider), OAUTH_CALLBACK);
+        if (result.type !== 'success') return { cancelled: true };
+        const callback = codeFromCallbackUrl(result.url);
+        if (callback.error) throw new Error('oauth');
+        return { code: callback.code, cancelled: !callback.code };
+      },
+    });
+    return instance;
+  });
 
-  // Probe the existing session once on launch (the cookie may have persisted).
+  useEffect(() => returnIntents.subscribe(setReturnIntent), [returnIntents]);
+
   useEffect(() => {
-    let alive = true;
-    me()
-      .then((u) => alive && setUser(u))
-      .catch(() => alive && setUser(null))
-      .finally(() => alive && setLoading(false));
+    const unsubscribe = subscribeUnauthorized((event) => void coordinator.handleUnauthorized(event));
+    void coordinator.bootstrap();
     return () => {
-      alive = false;
+      unsubscribe();
+      coordinator.cancelCurrent();
     };
-  }, []);
+  }, [coordinator]);
 
-  const signIn = useCallback(
-    async (email: string, password: string) => {
-      setUser(await apiLogin(email, password));
-      qc.invalidateQueries({ queryKey: ['saved'] });
-    },
-    [qc],
-  );
+  useEffect(() => {
+    let previous = AppState.currentState;
+    let lastRefresh = 0;
+    const subscription = AppState.addEventListener('change', (next) => {
+      const becameActive = previous !== 'active' && next === 'active';
+      previous = next;
+      const status = coordinator.getState().status;
+      if (becameActive && (status === 'authenticated' || status === 'refreshing') && Date.now() - lastRefresh > 1_000) {
+        lastRefresh = Date.now();
+        void coordinator.revalidate('foreground');
+      }
+    });
+    return () => subscription.remove();
+  }, [coordinator]);
 
-  const signUp = useCallback(
-    async (email: string, password: string) => {
-      setUser(await apiRegister(email, password));
-      qc.invalidateQueries({ queryKey: ['saved'] });
-    },
-    [qc],
-  );
-
-  const signInWithProvider = useCallback(
-    async (provider: string) => {
-      // Opens the provider flow; resolves with the redirect URL once the browser
-      // reaches our custom scheme (or with cancel/dismiss if the user backs out).
-      const result = await WebBrowser.openAuthSessionAsync(oauthStartUrl(provider), OAUTH_CALLBACK);
-      if (result.type !== 'success') return false; // user cancelled — quiet no-op
-
-      const { code, error } = codeFromCallbackUrl(result.url);
-      if (error) throw new Error('oauth');
-      if (!code) return false; // no code and no error — nothing to do
-
-      // The exchange POST is ours, so its Set-Cookie lands in the app's jar.
-      setUser(await exchangeOAuth(code));
-      qc.invalidateQueries({ queryKey: ['saved'] });
-      return true;
-    },
-    [qc],
-  );
-
+  const signIn = useCallback((email: string, password: string) => coordinator.login(email, password), [coordinator]);
+  const signUp = useCallback((email: string, password: string) => coordinator.register(email, password), [coordinator]);
+  const signInWithProvider = useCallback((provider: string) => coordinator.oauth(provider), [coordinator]);
   const signOut = useCallback(async () => {
     try {
-      // Before the session goes: this device must stop receiving the departing
-      // user's notifications. It has to happen first — the call is
-      // cookie-authenticated, so after logout there is nothing to authorize it.
       await unregisterThisDevice();
-      await apiLogout();
-    } finally {
-      // Clear locally even if the network call failed — the intent is to sign out.
-      setUser(null);
-      qc.removeQueries({ queryKey: ['saved'] });
-      qc.removeQueries({ queryKey: ['push'] });
-      qc.removeQueries({ queryKey: ['profile'] });
+    } catch {
+      // quiet fallback
     }
-  }, [qc]);
+    await coordinator.logout();
+  }, [coordinator]);
+  const logoutAll = useCallback(async () => {
+    try {
+      await unregisterThisDevice();
+    } catch {
+      // quiet fallback
+    }
+    await coordinator.logoutAll();
+  }, [coordinator]);
+  const deleteAccount = useCallback(async () => {
+    try {
+      await unregisterThisDevice();
+    } catch {
+      // quiet fallback
+    }
+    await authApi.deleteAccount(undefined, coordinator.getSessionEpoch());
+    coordinator.completeDeletion();
+  }, [coordinator]);
+  const retryBootstrap = useCallback(() => coordinator.retryBootstrap(), [coordinator]);
+  const revalidate = useCallback(() => coordinator.revalidate('explicit'), [coordinator]);
+  const recordReturnIntent = useCallback((intent: ReturnIntent) => coordinator.recordReturnIntent(intent), [coordinator]);
+  const clearReturnIntent = useCallback(() => coordinator.clearReturnIntent(), [coordinator]);
+  const retryReturnIntent = useCallback(() => coordinator.retryReturnIntent(), [coordinator]);
+  const isOwnerCurrent = useCallback(
+    (owner: SessionOwner) => coordinator.isOwnerCurrent(owner.userId, owner.sessionEpoch),
+    [coordinator],
+  );
+  const createPrivateMutation = useCallback(
+    (owner: SessionOwner) => mutationRegistry.create(owner.userId, owner.sessionEpoch),
+    [mutationRegistry],
+  );
+
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, signIn, signUp, signInWithProvider, signOut }),
-    [user, loading, signIn, signUp, signInWithProvider, signOut],
+    () => ({
+      state,
+      user: visibleUser(state),
+      loading: state.status === 'bootstrapping',
+      sessionEpoch,
+      returnIntent,
+      signIn,
+      signUp,
+      signInWithProvider,
+      signOut,
+      logoutAll,
+      deleteAccount,
+      retryBootstrap,
+      revalidate,
+      recordReturnIntent,
+      clearReturnIntent,
+      retryReturnIntent,
+      isOwnerCurrent,
+      createPrivateMutation,
+    }),
+    [
+      state,
+      sessionEpoch,
+      returnIntent,
+      signIn,
+      signUp,
+      signInWithProvider,
+      signOut,
+      logoutAll,
+      deleteAccount,
+      retryBootstrap,
+      revalidate,
+      recordReturnIntent,
+      clearReturnIntent,
+      retryReturnIntent,
+      isOwnerCurrent,
+      createPrivateMutation,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
+  return context;
 }
 
-/** The configured OAuth providers, for rendering sign-in buttons. Cached and
- *  non-blocking: on failure it yields `[]` so the buttons simply don't show and
- *  the email/password form is never gated on it. */
 export function useOAuthProviders(): string[] {
   const { data } = useQuery({
-    queryKey: ['oauth', 'providers'],
-    queryFn: oauthProviders,
+    queryKey: publicKeys.oauthProviders,
+    queryFn: ({ signal }) => authApi.oauthProviders(signal),
     staleTime: 5 * 60_000,
     retry: false,
   });

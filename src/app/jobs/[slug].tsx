@@ -1,6 +1,5 @@
 import * as WebBrowser from 'expo-web-browser';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
 import {
   ActivityIndicator,
@@ -13,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppSymbol } from '@/components/AppSymbol';
 import { CompanyLogo } from '@/components/CompanyLogo';
 import { JobDescription } from '@/components/JobDescription';
 import { RealityBadge } from '@/components/RealityBadge';
@@ -32,7 +32,7 @@ function BackButton({ color }: { color: string }) {
       hitSlop={12}
       onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
       style={({ pressed }) => [styles.back, pressed && { opacity: 0.5 }]}>
-      <SymbolView name="chevron.left" size={22} weight="semibold" tintColor={color} />
+      <AppSymbol name="chevron.left" size={22} weight="semibold" tintColor={color} />
     </Pressable>
   );
 }
@@ -100,7 +100,7 @@ export default function JobDetailScreen() {
           <CompanyLogo name={job.company || '?'} size={32} />
           {job.company_slug ? (
             <Pressable
-              onPress={() => router.push(`/companies/${job.company_slug}`)}
+              onPress={() => router.push({ pathname: '/companies/[slug]', params: { slug: job.company_slug! } })}
               hitSlop={4}
               style={styles.companyTextWrap}>
               <Text numberOfLines={1} style={[styles.company, { color: c.mutedForeground }]}>

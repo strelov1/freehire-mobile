@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import {
   Pressable,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppSymbol } from '@/components/AppSymbol';
 import { Chip } from '@/components/Chip';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useAuth } from '@/lib/authStore';
@@ -36,8 +36,8 @@ import { useProfile } from '@/lib/useProfile';
 const MAX_COUNTRIES = 30;
 const MAX_SKILLS = 30;
 
-// Stable reference so the `countries` useMemo below doesn't invalidate every
-// render while `counts` is still loading.
+// Stable reference so the countries useMemo below doesn't invalidate every
+// render while counts is still loading.
 const EMPTY_FACETS: Record<string, Record<string, number>> = {};
 
 /**
@@ -141,7 +141,7 @@ export default function FiltersScreen() {
                 { backgroundColor: c.brand },
                 pressed && { opacity: 0.85 },
               ]}>
-              <SymbolView name="person.crop.circle" size={14} weight="semibold" tintColor={c.brandForeground} />
+              <AppSymbol name="person.crop.circle" size={14} weight="semibold" tintColor={c.brandForeground} />
               <Text style={[styles.applyProfileText, { color: c.brandForeground }]}>Apply profile</Text>
             </Pressable>
           ) : null}
@@ -149,7 +149,7 @@ export default function FiltersScreen() {
             onPress={() => router.back()}
             hitSlop={12}
             style={({ pressed }) => pressed && { opacity: 0.5 }}>
-            <SymbolView name="xmark" size={20} weight="semibold" tintColor={c.foreground} />
+            <AppSymbol name="xmark" size={20} weight="semibold" tintColor={c.foreground} />
           </Pressable>
         </View>
       </View>
@@ -184,7 +184,7 @@ export default function FiltersScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: c.foreground }]}>Skills</Text>
           <View style={[styles.search, { backgroundColor: c.card, borderColor: c.border }]}>
-            <SymbolView name="magnifyingglass" size={15} tintColor={c.mutedForeground} />
+            <AppSymbol name="magnifyingglass" size={15} tintColor={c.mutedForeground} />
             <TextInput
               value={skillQuery}
               onChangeText={setSkillQuery}
@@ -246,7 +246,7 @@ export default function FiltersScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: c.foreground }]}>Country</Text>
           <View style={[styles.search, { backgroundColor: c.card, borderColor: c.border }]}>
-            <SymbolView name="magnifyingglass" size={15} tintColor={c.mutedForeground} />
+            <AppSymbol name="magnifyingglass" size={15} tintColor={c.mutedForeground} />
             <TextInput
               value={countryQuery}
               onChangeText={setCountryQuery}

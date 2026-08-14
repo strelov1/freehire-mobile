@@ -1,8 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppSymbol } from '@/components/AppSymbol';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useNotification } from '@/lib/useNotifications';
 
@@ -16,7 +16,7 @@ function BackButton({ color }: { color: string }) {
       hitSlop={12}
       onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
       style={({ pressed }) => [styles.back, pressed && { opacity: 0.5 }]}>
-      <SymbolView name="chevron.left" size={22} weight="semibold" tintColor={color} />
+      <AppSymbol name="chevron.left" size={22} weight="semibold" tintColor={color} />
     </Pressable>
   );
 }
