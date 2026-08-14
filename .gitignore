@@ -47,3 +47,7 @@ example
 
 # Claude Code worktrees
 .claude/worktrees/
+
+# Agent scratch directory
+.agents/
+

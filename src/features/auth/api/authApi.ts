@@ -59,8 +59,8 @@ export const authApi = {
   async exchangeOAuth(code: string, signal?: AbortSignal): Promise<User> {
     return (await call<Data<User>>(authEndpoints.oauthExchange, { code }, signal)).data;
   },
-  async deleteAccount(signal?: AbortSignal, sessionEpoch?: number): Promise<void> {
-    await call<void>(authEndpoints.deleteAccount, undefined, signal, sessionEpoch);
+  async deleteAccount(email?: string, signal?: AbortSignal, sessionEpoch?: number): Promise<void> {
+    await call<void>(authEndpoints.deleteAccount, email ? { email } : undefined, signal, sessionEpoch);
   },
 };
 
@@ -69,10 +69,17 @@ const SAFE_MESSAGES: Record<string, string> = {
   'register:400': 'Please enter a valid email and a password of at least 8 characters.',
   'register:409': 'That email is already registered.',
   'oauth:401': 'This sign-in link expired. Please try again.',
+  'forgot:400': 'Please enter a valid email address.',
+  'reset:400': 'Please enter a valid code and a password of at least 8 characters.',
+  'reset:401': 'Reset code is invalid or expired. Please request a new one.',
+  'reset:404': 'Reset code is invalid or expired. Please request a new one.',
   'any:429': 'Too many attempts. Please wait and try again.',
 };
 
-export function authMessage(error: unknown, operation: 'login' | 'register' | 'oauth'): string {
+export function authMessage(
+  error: unknown,
+  operation: 'login' | 'register' | 'oauth' | 'forgot' | 'reset',
+): string {
   if (!(error instanceof ApiError)) return 'Something went wrong. Please try again.';
   if (error.status === 429 && error.retryAfterSeconds !== undefined) {
     return `Too many attempts. Try again in ${Math.max(1, Math.ceil(error.retryAfterSeconds / 60))} minute(s).`;

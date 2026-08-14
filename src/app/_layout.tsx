@@ -100,6 +100,12 @@ export default function RootLayout() {
                       modal above. */}
                   <Stack.Screen name="filters/quick" options={{ headerShown: false, presentation: 'modal' }} />
                   <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'modal' }} />
+                  <Stack.Screen name="auth/forgot" options={{ headerShown: false, presentation: 'modal' }} />
+                  <Stack.Screen name="auth/reset" options={{ headerShown: false, presentation: 'modal' }} />
+                  {/* Account screens */}
+                  <Stack.Screen name="account/index" options={{ headerShown: false }} />
+                  <Stack.Screen name="account/security" options={{ headerShown: false }} />
+                  <Stack.Screen name="account/delete" options={{ headerShown: false }} />
                   {/* A multi-job digest's own matched-jobs list, pushed from the
                       Notifications tab — no native header, same reasoning as
                       jobs/[slug]. */}

@@ -6,6 +6,7 @@ import { AppState } from 'react-native';
 
 import { authApi } from '@/features/auth/api/authApi';
 import type { AuthCompletion, SessionOwner, SessionState } from '@/features/auth/model/authTypes';
+import type { RecentAuthProof } from '@/features/auth/model/authV2Types';
 import {
   ReturnIntentManager,
   type ReturnIntent,
@@ -31,9 +32,14 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<AuthCompletion>;
   signUp: (email: string, password: string) => Promise<AuthCompletion>;
   signInWithProvider: (provider: string) => Promise<AuthCompletion>;
+  signInWithProviderV2: (provider: string, purpose?: 'sign_in' | 'reauth') => Promise<AuthCompletion | RecentAuthProof>;
+  signInWithApple: (purpose?: 'sign_in' | 'reauth') => Promise<AuthCompletion | RecentAuthProof>;
+  passwordReauth: (password: string) => Promise<RecentAuthProof>;
+  appleReauth: () => Promise<RecentAuthProof>;
+  oauthReauth: (provider: string) => Promise<RecentAuthProof>;
+  deleteAccount: (email?: string) => Promise<void>;
   signOut: () => Promise<void>;
   logoutAll: () => Promise<void>;
-  deleteAccount: () => Promise<void>;
   retryBootstrap: () => Promise<void>;
   revalidate: () => Promise<void>;
   recordReturnIntent: (intent: ReturnIntent) => boolean;
@@ -59,6 +65,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [returnIntent, setReturnIntent] = useState<ReturnIntentSnapshot>({ status: 'empty' });
   const [returnIntents] = useState(() => new ReturnIntentManager());
   const [mutationRegistry] = useState(() => new PrivateMutationRegistry());
+
+  const openOAuthV2 = useCallback(async (url: string) => {
+    const result = await WebBrowser.openAuthSessionAsync(url, OAUTH_CALLBACK);
+    if (result.type !== 'success') return { cancelled: true };
+    const callback = codeFromCallbackUrl(result.url);
+    if (callback.error) throw new Error('oauth');
+    return { code: callback.code, cancelled: !callback.code };
+  }, []);
+
   const [coordinator] = useState(() => {
     let instance!: SessionCoordinator;
     instance = new SessionCoordinator({
@@ -106,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (callback.error) throw new Error('oauth');
         return { code: callback.code, cancelled: !callback.code };
       },
+      openOAuthV2: (url) => openOAuthV2(url),
     });
     return instance;
   });
@@ -139,6 +155,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = useCallback((email: string, password: string) => coordinator.login(email, password), [coordinator]);
   const signUp = useCallback((email: string, password: string) => coordinator.register(email, password), [coordinator]);
   const signInWithProvider = useCallback((provider: string) => coordinator.oauth(provider), [coordinator]);
+  const signInWithProviderV2 = useCallback(
+    (provider: string, purpose?: 'sign_in' | 'reauth') => coordinator.oauthV2(provider, purpose),
+    [coordinator],
+  );
+  const signInWithApple = useCallback(
+    (purpose?: 'sign_in' | 'reauth') => coordinator.appleSignIn(purpose),
+    [coordinator],
+  );
+  const passwordReauth = useCallback(
+    (password: string) => coordinator.passwordReauth(password),
+    [coordinator],
+  );
+  const appleReauth = useCallback(() => coordinator.appleReauth(), [coordinator]);
+  const oauthReauth = useCallback(
+    (provider: string) => coordinator.oauthReauth(provider),
+    [coordinator],
+  );
+  const deleteAccount = useCallback(
+    async (email?: string) => {
+      try {
+        await unregisterThisDevice();
+      } catch {
+        // quiet fallback
+      }
+      await coordinator.deleteAccount(email);
+    },
+    [coordinator],
+  );
   const signOut = useCallback(async () => {
     try {
       await unregisterThisDevice();
@@ -155,15 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     await coordinator.logoutAll();
   }, [coordinator]);
-  const deleteAccount = useCallback(async () => {
-    try {
-      await unregisterThisDevice();
-    } catch {
-      // quiet fallback
-    }
-    await authApi.deleteAccount(undefined, coordinator.getSessionEpoch());
-    coordinator.completeDeletion();
-  }, [coordinator]);
+
   const retryBootstrap = useCallback(() => coordinator.retryBootstrap(), [coordinator]);
   const revalidate = useCallback(() => coordinator.revalidate('explicit'), [coordinator]);
   const recordReturnIntent = useCallback((intent: ReturnIntent) => coordinator.recordReturnIntent(intent), [coordinator]);
@@ -178,7 +214,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [mutationRegistry],
   );
 
-
   const value = useMemo<AuthContextValue>(
     () => ({
       state,
@@ -189,9 +224,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signUp,
       signInWithProvider,
+      signInWithProviderV2,
+      signInWithApple,
+      passwordReauth,
+      appleReauth,
+      oauthReauth,
+      deleteAccount,
       signOut,
       logoutAll,
-      deleteAccount,
       retryBootstrap,
       revalidate,
       recordReturnIntent,
@@ -207,9 +247,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signUp,
       signInWithProvider,
+      signInWithProviderV2,
+      signInWithApple,
+      passwordReauth,
+      appleReauth,
+      oauthReauth,
+      deleteAccount,
       signOut,
       logoutAll,
-      deleteAccount,
       retryBootstrap,
       revalidate,
       recordReturnIntent,

@@ -10,6 +10,18 @@ describe('authMessage', () => {
     expect(authMessage(new ApiError({ kind: 'http', endpoint: '/register', status: 409 }), 'register')).toBe(
       'That email is already registered.',
     );
+    expect(authMessage(new ApiError({ kind: 'http', endpoint: '/forgot', status: 400 }), 'forgot')).toBe(
+      'Please enter a valid email address.',
+    );
+    expect(authMessage(new ApiError({ kind: 'http', endpoint: '/reset', status: 400 }), 'reset')).toBe(
+      'Please enter a valid code and a password of at least 8 characters.',
+    );
+    expect(authMessage(new ApiError({ kind: 'http', endpoint: '/reset', status: 401 }), 'reset')).toBe(
+      'Reset code is invalid or expired. Please request a new one.',
+    );
+    expect(authMessage(new ApiError({ kind: 'http', endpoint: '/reset', status: 404 }), 'reset')).toBe(
+      'Reset code is invalid or expired. Please request a new one.',
+    );
   });
 
   it('does not render arbitrary server text', () => {

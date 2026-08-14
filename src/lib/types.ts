@@ -72,9 +72,9 @@ export type User = {
   email: string;
   role: string;
   beta_tester: boolean;
-  email_verified: boolean;
-  has_password: boolean;
-  created_at: string | null;
+  email_verified?: boolean;
+  has_password?: boolean;
+  created_at?: string | null;
 };
 
 /** "Where & how I want to work" — a deliberate subset of the server's

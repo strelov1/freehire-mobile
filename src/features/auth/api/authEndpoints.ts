@@ -22,6 +22,14 @@ export const authEndpoints = {
   oauthProviders: { method: 'GET', path: '/api/v1/auth/oauth/providers', authMode: 'public', success: 200, expectsBody: true },
   oauthExchange: { method: 'POST', path: '/api/v1/auth/oauth/exchange', authMode: 'public', success: 200, expectsBody: true },
   deleteAccount: { method: 'DELETE', path: '/api/v1/me', authMode: 'required', success: 204, expectsBody: false },
+
+  // v2 endpoints
+  v2Providers: { method: 'GET', path: '/api/v2/auth/providers', authMode: 'public', success: 200, expectsBody: true },
+  v2OAuthExchange: { method: 'POST', path: '/api/v2/auth/oauth/exchange', authMode: 'public', success: 200, expectsBody: true },
+  v2AppleAttempt: { method: 'POST', path: '/api/v2/auth/apple/attempt', authMode: 'public', success: 200, expectsBody: true },
+  v2AppleExchange: { method: 'POST', path: '/api/v2/auth/apple/exchange', authMode: 'public', success: 200, expectsBody: true },
+  v2PasswordReauth: { method: 'POST', path: '/api/v2/auth/reauth/password', authMode: 'required', success: 200, expectsBody: true },
+  v2Identities: { method: 'GET', path: '/api/v2/auth/identities', authMode: 'required', success: 200, expectsBody: true },
 } as const satisfies Record<string, EndpointContract>;
 
 export function oauthStartEndpoint(provider: string): EndpointContract {
@@ -31,5 +39,25 @@ export function oauthStartEndpoint(provider: string): EndpointContract {
     authMode: 'public',
     success: 302,
     expectsBody: false,
+  };
+}
+
+export function v2OAuthStartEndpoint(provider: string): EndpointContract {
+  return {
+    method: 'GET',
+    path: `/api/v2/auth/oauth/${encodeURIComponent(provider)}/start`,
+    authMode: 'public',
+    success: 302,
+    expectsBody: false,
+  };
+}
+
+export function v2UnlinkIdentityEndpoint(provider: string): EndpointContract {
+  return {
+    method: 'DELETE',
+    path: `/api/v2/auth/identities/${encodeURIComponent(provider)}`,
+    authMode: 'required',
+    success: 200,
+    expectsBody: true,
   };
 }

@@ -1,6 +1,12 @@
+import { Platform } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import { generateVerifier, computeChallenge } from '@/lib/pkce';
+import { generateNonce, sha256Hex } from '@/lib/nonce';
 import type { User } from '@/lib/types';
 import { ApiError } from '@/lib/transport';
 
+import { authV2Api } from '../api/authV2Api';
+import type { RecentAuthProof } from '../model/authV2Types';
 import type { ReturnIntent, ReturnIntentManager } from '../model/returnIntent';
 import type { AuthCompletion, AuthOperation, AvailabilityKind, GuestReason, SessionState } from '../model/authTypes';
 import { sessionReducer, type SessionAction } from './sessionReducer';
@@ -21,6 +27,7 @@ type CoordinatorDependencies = {
   transitionIdentity: (previousUserId: number | undefined, nextUserId: number | undefined, nextEpoch: number) => Promise<void>;
   executeReturnIntent: (intent: ReturnIntent, user: User, sessionEpoch: number) => Promise<void>;
   openOAuth: (provider: string) => Promise<{ code?: string; cancelled: boolean }>;
+  openOAuthV2?: (url: string) => Promise<{ code?: string; cancelled: boolean }>;
 };
 
 type Operation = { generation: number; epoch: number; controller: AbortController };
@@ -67,6 +74,17 @@ export class SessionCoordinator {
     this.generation += 1;
     this.active?.abort();
     this.active = undefined;
+    if (
+      this.state.status === 'signingOut' ||
+      this.state.status === 'authenticating' ||
+      this.state.status === 'refreshing'
+    ) {
+      if (this.committedUser) {
+        this.publish({ type: 'AUTHENTICATED', user: this.committedUser });
+      } else {
+        this.publish({ type: 'GUEST', reason: 'no_session' });
+      }
+    }
   }
 
   async bootstrap() {
@@ -140,6 +158,166 @@ export class SessionCoordinator {
     } catch (error) {
       if (!this.isCurrent(operation) || this.isAbort(error)) return { status: 'cancelled', intent: 'none' };
       this.restoreAfterAuthFailure(previousState);
+      throw error;
+    }
+  }
+
+  async oauthV2(
+    provider: string,
+    purpose: 'sign_in' | 'reauth' = 'sign_in',
+  ): Promise<AuthCompletion | RecentAuthProof> {
+    const previousState = this.state;
+    const operation = this.begin({ type: 'AUTHENTICATING', operation: 'oauth' });
+    try {
+      const verifier = generateVerifier();
+      const codeChallenge = await computeChallenge(verifier);
+      const callbackTarget = 'freehiremobile://auth-callback';
+      const platform = Platform.OS === 'ios' ? 'ios' : 'android';
+      const url = authV2Api.oauthStartUrl(provider, {
+        provider,
+        platform,
+        callbackTarget,
+        purpose,
+        codeChallenge,
+      });
+
+      const opener = this.dependencies.openOAuthV2;
+      const browser = opener ? await opener(url) : await this.dependencies.openOAuth(provider);
+      if (!this.isCurrent(operation)) return { status: 'cancelled', intent: 'none' };
+      if (browser.cancelled || !browser.code) {
+        this.restoreAfterAuthFailure(previousState);
+        return { status: 'cancelled', intent: 'none' };
+      }
+
+      const res = await authV2Api.oauthExchange(browser.code, verifier, operation.controller.signal);
+      if (!this.isCurrent(operation)) return { status: 'cancelled', intent: 'none' };
+
+      if ('recent_auth_expires_at' in res) {
+        this.restoreAfterAuthFailure(previousState);
+        return res;
+      } else {
+        return this.finishAuthentication(res, operation);
+      }
+    } catch (error) {
+      if (!this.isCurrent(operation) || this.isAbort(error)) return { status: 'cancelled', intent: 'none' };
+      this.restoreAfterAuthFailure(previousState);
+      throw error;
+    }
+  }
+
+  async appleSignIn(
+    purpose: 'sign_in' | 'reauth' = 'sign_in',
+  ): Promise<AuthCompletion | RecentAuthProof> {
+    const previousState = this.state;
+    const operation = this.begin({ type: 'AUTHENTICATING', operation: 'oauth' });
+    try {
+      const rawNonce = generateNonce();
+      const nonceChallenge = await sha256Hex(rawNonce);
+      const attempt = await authV2Api.appleAttempt(purpose, nonceChallenge, operation.controller.signal);
+      if (!this.isCurrent(operation)) return { status: 'cancelled', intent: 'none' };
+
+      let credential;
+      try {
+        credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+          nonce: nonceChallenge,
+        });
+      } catch (err: unknown) {
+        const errorWithCode = err as { code?: string; message?: string };
+        if (
+          errorWithCode &&
+          (errorWithCode.code === 'ERR_REQUEST_CANCELED' ||
+            errorWithCode.code === 'ERR_CANCELED' ||
+            errorWithCode.code === '1001' ||
+            (typeof errorWithCode.message === 'string' && errorWithCode.message.toLowerCase().includes('cancel')))
+        ) {
+          if (this.isCurrent(operation)) {
+            this.restoreAfterAuthFailure(previousState);
+          }
+          return { status: 'cancelled', intent: 'none' };
+        }
+        throw err;
+      }
+
+      if (!this.isCurrent(operation)) return { status: 'cancelled', intent: 'none' };
+
+      const res = await authV2Api.appleExchange(
+        {
+          attempt_id: attempt.attempt_id,
+          identity_token: credential.identityToken ?? '',
+          authorization_code: credential.authorizationCode ?? '',
+          raw_nonce: rawNonce,
+        },
+        operation.controller.signal,
+      );
+
+      if (!this.isCurrent(operation)) return { status: 'cancelled', intent: 'none' };
+
+      if ('recent_auth_expires_at' in res) {
+        this.restoreAfterAuthFailure(previousState);
+        return res;
+      } else {
+        return this.finishAuthentication(res, operation);
+      }
+    } catch (error) {
+      if (!this.isCurrent(operation) || this.isAbort(error)) return { status: 'cancelled', intent: 'none' };
+      this.restoreAfterAuthFailure(previousState);
+      throw error;
+    }
+  }
+
+  async passwordReauth(password: string): Promise<RecentAuthProof> {
+    const user = this.committedUser;
+    if (!user) {
+      throw new Error('User must be authenticated to perform reauthentication');
+    }
+    const previousState = this.state;
+    const operation = this.begin({ type: 'AUTHENTICATING', operation: 'login' });
+    try {
+      const proof = await authV2Api.passwordReauth(password, operation.epoch, operation.controller.signal);
+      if (!this.isCurrent(operation)) {
+        throw new Error('Reauthentication cancelled by newer operation');
+      }
+      this.publish({ type: 'AUTHENTICATED', user });
+      return proof;
+    } catch (error) {
+      if (!this.isCurrent(operation) || this.isAbort(error)) throw error;
+      this.restoreAfterAuthFailure(previousState);
+      throw error;
+    }
+  }
+
+  async appleReauth(): Promise<RecentAuthProof> {
+    const res = await this.appleSignIn('reauth');
+    if ('recent_auth_expires_at' in res) {
+      return res;
+    }
+    throw new Error('Expected recent auth proof from Apple reauthentication');
+  }
+
+  async oauthReauth(provider: string): Promise<RecentAuthProof> {
+    const res = await this.oauthV2(provider, 'reauth');
+    if ('recent_auth_expires_at' in res) {
+      return res;
+    }
+    throw new Error('Expected recent auth proof from OAuth reauthentication');
+  }
+
+  async deleteAccount(email?: string): Promise<void> {
+    const user = this.committedUser;
+    if (!user) return;
+    const targetEmail = email ?? user.email;
+    const operation = this.begin({ type: 'SIGNING_OUT', user });
+    try {
+      await authV2Api.deleteAccount(targetEmail, operation.epoch, operation.controller.signal);
+      if (!this.isCurrent(operation)) return;
+      await this.commitGuest('deleted', operation);
+    } catch (error) {
+      if (!this.isCurrent(operation) || this.isAbort(error)) return;
+      this.publish({ type: 'AUTHENTICATED', user });
       throw error;
     }
   }

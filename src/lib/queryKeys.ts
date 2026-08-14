@@ -7,12 +7,15 @@ export const publicKeys = {
   },
   facets: (query: string) => ['public', 'facets', query] as const,
   oauthProviders: ['public', 'auth', 'oauth-providers'] as const,
+  v2Providers: ['public', 'auth', 'v2-providers'] as const,
+  providers: ['public', 'auth', 'v2-providers'] as const,
 };
 
 export const privateKeys = {
   root: (userId: number) => ['private', userId] as const,
   savedJobs: (userId: number) => ['private', userId, 'saved-jobs'] as const,
   signedOutSavedJobs: ['private', 'none', 'saved-jobs'] as const,
+  identities: (userId: number) => ['private', userId, 'identities'] as const,
 };
 
 export function isPrivateQueryForUser(userId: number) {

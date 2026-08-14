@@ -47,6 +47,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ...config.ios,
       bundleIdentifier: 'me.freehire.mobile',
       buildNumber: '1',
+      usesAppleSignIn: true,
+      associatedDomains: [
+        'applinks:freehire.dev',
+        'applinks:freehire.me',
+      ],
       icon: {
         light: './assets/images/freehire-icon-light.png',
         dark: './assets/images/freehire-icon-dark.png',
@@ -66,6 +71,17 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         monochromeImage: './assets/images/android-icon-monochrome.png',
       },
       predictiveBackGestureEnabled: false,
+      intentFilters: [
+        {
+          action: 'VIEW',
+          autoVerify: true,
+          data: [
+            { scheme: 'https', host: 'freehire.dev', pathPrefix: '/api/v2/auth/oauth' },
+            { scheme: 'https', host: 'freehire.me', pathPrefix: '/api/v2/auth/oauth' },
+          ],
+          category: ['BROWSABLE', 'DEFAULT'],
+        },
+      ],
     },
     web: {
       output: 'static',
