@@ -23,4 +23,4 @@
 ## 5. Verification
 
 - [x] 5.1 `npm run lint` and `npx tsc --noEmit` clean; `npm test` green.
-- [ ] 5.2 Manually verify on a simulator: the tab lists companies, search narrows them, both sort orders work, scrolling pages in, a card opens the company screen, and a sparse company renders without empty rows.
+- [x] 5.2 Manually verify on a simulator: the tab lists companies, search narrows them, both sort orders work, scrolling pages in, a card opens the company screen, and a sparse company renders without empty rows.
