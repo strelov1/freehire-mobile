@@ -2,32 +2,19 @@
  * The company directory's request shape, kept apart from the transport so the
  * rules worth testing — which parameters are sent at all — are testable without
  * a fetch mock. Mirrors `hire/web`'s `companyFacetModel.ts`, minus the facets
- * the mobile directory doesn't offer.
+ * and the sort control the mobile directory doesn't offer.
  */
-
-/** 'job_count' is the backend's own ordering (most open roles first); 'rating'
- *  asks for `feedback_rating_avg` descending. Same vocabulary as the web
- *  catalog's sort control. */
-export type CompanySort = 'job_count' | 'rating';
-
-/** Never written into a request: sending it would pin a default the server
- *  owns, so a change there would silently stop reaching this client. */
-export const DEFAULT_COMPANY_SORT: CompanySort = 'job_count';
 
 export const COMPANY_PAGE_SIZE = 20;
 
-/** Serialize one page request for `GET /api/v1/companies`. A blank search and
- *  the default sort are left out rather than sent empty. */
-export function companyListParams(
-  q: string,
-  sort: CompanySort,
-  limit: number,
-  offset: number,
-): URLSearchParams {
+/** Serialize one page request for `GET /api/v1/companies`. A blank search is
+ *  left out rather than sent empty, and no `sort` is ever sent: the ordering is
+ *  the backend's own default (most open roles first), so a change there reaches
+ *  this client instead of being pinned by an explicit parameter. */
+export function companyListParams(q: string, limit: number, offset: number): URLSearchParams {
   const params = new URLSearchParams();
   const search = q.trim();
   if (search) params.set('q', search);
-  if (sort !== DEFAULT_COMPANY_SORT) params.set('sort', sort);
   params.set('limit', String(limit));
   params.set('offset', String(offset));
   return params;

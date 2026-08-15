@@ -6,18 +6,18 @@ The placeholder's own comment explains the tab as blocked on a missing API: "no 
 
 ## What Changes
 
-- The Companies tab (`src/app/(tabs)/companies.tsx`) becomes a real, paginated company directory: a pinned search field, a result count, a sort toggle, and an infinitely-scrolling list of company cards with pull-to-refresh — the same screen skeleton the job feed (`src/app/(tabs)/index.tsx`) already uses.
+- The Companies tab (`src/app/(tabs)/companies.tsx`) becomes a real, paginated company directory: a pinned search field, a result count, and an infinitely-scrolling list of company cards with pull-to-refresh — the same screen skeleton the job feed (`src/app/(tabs)/index.tsx`) already uses.
 - New `CompanyCard` (`src/components/CompanyCard.tsx`) renders one directory row: logo, name, rating, open-role count, tagline, industry and HQ country. Tapping it opens the existing company screen at `companies/[slug]`.
 - New `CompanyListItem` wire type (`src/lib/types.ts`), a `listCompanies` reader (`src/lib/api.ts`), a pure query-param builder (`src/lib/companyList.ts`), a `useCompanySearch` infinite query (`src/lib/useCompanySearch.ts`), and a `publicKeys.companies.search` cache key (`src/lib/queryKeys.ts`).
 - Search text is debounced before it reaches the network, reusing the existing `useDebounced` hook.
 
-**Out of scope**: company facet filters and a companies filter screen (the web catalog's 13 facets); the web catalog's SEO/JSON-LD concerns, which have no mobile analogue; backer/collection badges on the card; any backend change.
+**Out of scope**: any sort control — the catalog is presented in the backend's own order; company facet filters and a companies filter screen (the web catalog's 13 facets); the web catalog's SEO/JSON-LD concerns, which have no mobile analogue; backer/collection badges on the card; any backend change.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `company-directory`: browsing, searching and sorting the company catalog from the Companies tab, and opening a company from it.
+- `company-directory`: browsing and searching the company catalog from the Companies tab, and opening a company from it.
 
 ### Modified Capabilities
 
@@ -27,7 +27,7 @@ The placeholder's own comment explains the tab as blocked on a missing API: "no 
 
 - `src/app/(tabs)/companies.tsx` — placeholder replaced with the directory screen.
 - `src/components/CompanyCard.tsx` — new file.
-- `src/lib/companyList.ts` — new file (pure query-param builder + its sort vocabulary).
+- `src/lib/companyList.ts` — new file (pure query-param builder and page-walk arithmetic).
 - `src/lib/useCompanySearch.ts` — new file.
 - `src/lib/types.ts` — new `CompanyListItem` type.
 - `src/lib/api.ts` — new `listCompanies` reader.

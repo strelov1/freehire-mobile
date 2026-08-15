@@ -13,10 +13,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppSymbol } from '@/components/AppSymbol';
-import { Chip } from '@/components/Chip';
 import { CompanyCard } from '@/components/CompanyCard';
 import { getColors, Radius, Space } from '@/constants/freehire';
-import { DEFAULT_COMPANY_SORT, type CompanySort } from '@/lib/companyList';
 import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
 import type { CompanyListItem } from '@/lib/types';
 import { useCompanySearch } from '@/lib/useCompanySearch';
@@ -26,11 +24,6 @@ import { useDebounced } from '@/lib/useDebounced';
  *  list still feels like it reacts to typing. */
 const SEARCH_DEBOUNCE_MS = 300;
 
-const SORTS: { value: CompanySort; label: string; a11y: string }[] = [
-  { value: 'job_count', label: 'Most active', a11y: 'Sort by open roles' },
-  { value: 'rating', label: 'Top rated', a11y: 'Sort by rating' },
-];
-
 /**
  * The company directory. Same skeleton as the job feed (`(tabs)/index.tsx`):
  * a pinned header that stays mounted across every state, and a body that swaps
@@ -38,13 +31,12 @@ const SORTS: { value: CompanySort; label: string; a11y: string }[] = [
  *
  * The typed text drives the field; only its debounced form reaches
  * `useCompanySearch`, which keys its cache on it — so typing costs no requests
- * and a settled word costs exactly one. The sort, a discrete choice rather than
- * a stream of keystrokes, applies immediately.
+ * and a settled word costs exactly one. Ordering is the backend's own, most
+ * open roles first; the screen offers no sort control.
  */
 export default function CompaniesScreen() {
   const c = getColors(useColorScheme());
   const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<CompanySort>(DEFAULT_COMPANY_SORT);
   // Trimmed BEFORE the debounce, so the query key and the request agree on what
   // the search is. Keying on the raw text would make "stripe " a different cache
   // entry from "stripe" while producing a byte-identical request — the list
@@ -62,7 +54,7 @@ export default function CompaniesScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useCompanySearch(settledQuery, sort);
+  } = useCompanySearch(settledQuery);
 
   const companies = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
   const total = data?.pages[0]?.meta.total ?? 0;
@@ -91,29 +83,13 @@ export default function CompaniesScreen() {
           </Pressable>
         ) : null}
       </View>
-      <View style={styles.toolbar}>
-        {/* An unfiltered `total` is a planner estimate server-side, not an exact
-            count, so this figure can drift between loads. Same on the web. */}
-        {total > 0 ? (
-          <Text style={[styles.count, { color: c.mutedForeground }]}>
-            {total.toLocaleString('en-US')} {total === 1 ? 'company' : 'companies'}
-          </Text>
-        ) : null}
-        {/* Two orders only, so a pair of chips beats a picker sheet — see this
-            change's design note on the sort control. */}
-        <View style={styles.sorts}>
-          {SORTS.map((option) => (
-            <Chip
-              key={option.value}
-              label={option.label}
-              selected={sort === option.value}
-              colors={c}
-              onPress={() => setSort(option.value)}
-              accessibilityLabel={option.a11y}
-            />
-          ))}
-        </View>
-      </View>
+      {/* An unfiltered `total` is a planner estimate server-side, not an exact
+          count, so this figure can drift between loads. Same on the web. */}
+      {total > 0 ? (
+        <Text style={[styles.count, { color: c.mutedForeground }]}>
+          {total.toLocaleString('en-US')} {total === 1 ? 'company' : 'companies'}
+        </Text>
+      ) : null}
     </View>
   );
 
@@ -223,20 +199,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     padding: 0,
   },
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Space.sm,
-  },
   count: {
-    flexShrink: 1,
     fontSize: 13,
     fontVariant: ['tabular-nums'],
-  },
-  sorts: {
-    marginLeft: 'auto',
-    flexDirection: 'row',
-    gap: 6,
   },
   listContent: {
     paddingHorizontal: Space.lg,

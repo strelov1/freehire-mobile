@@ -70,10 +70,10 @@ function render() {
   return renderer;
 }
 
-/** The (query, sort) pair the screen last asked the data layer for. */
-function lastCall(): [string, string] {
+/** The query the screen last asked the data layer for. */
+function lastQuery(): string {
   const calls = mockedUseCompanySearch.mock.calls;
-  return calls[calls.length - 1] as [string, string];
+  return calls[calls.length - 1]![0];
 }
 
 describe('CompaniesScreen (src/app/(tabs)/companies.tsx)', () => {
@@ -100,9 +100,9 @@ describe('CompaniesScreen (src/app/(tabs)/companies.tsx)', () => {
     expect(shown).toContain('2 companies');
   });
 
-  it('asks for the unfiltered catalog in the default sort on first render', () => {
+  it('asks for the unfiltered catalog on first render', () => {
     render();
-    expect(lastCall()).toEqual(['', 'job_count']);
+    expect(lastQuery()).toBe('');
   });
 
   it('shows a retry that refetches when the request failed', () => {
@@ -166,21 +166,6 @@ describe('CompaniesScreen (src/app/(tabs)/companies.tsx)', () => {
     expect(renderedText(renderer)).not.toContain('No companies yet.');
   });
 
-  it('marks the active sort as selected', () => {
-    const renderer = render();
-    // Role narrows this to the Pressable: the `Chip` element itself also carries
-    // the label, but only the pressable underneath carries the state.
-    const chip = (label: string) =>
-      renderer.root.findAllByProps({ accessibilityLabel: label, accessibilityRole: 'button' })[0]!;
-    expect(chip('Sort by open roles').props.accessibilityState).toEqual({ selected: true });
-    expect(chip('Sort by rating').props.accessibilityState).toEqual({ selected: false });
-    act(() => {
-      chip('Sort by rating').props.onPress();
-    });
-    expect(chip('Sort by rating').props.accessibilityState).toEqual({ selected: true });
-    expect(chip('Sort by open roles').props.accessibilityState).toEqual({ selected: false });
-  });
-
   it('loads the next page when the list end comes into view', () => {
     mockedUseCompanySearch.mockReturnValue(hookResult({ hasNextPage: true }));
     const renderer = render();
@@ -227,25 +212,17 @@ describe('CompaniesScreen (src/app/(tabs)/companies.tsx)', () => {
       act(() => {
         renderer.root.findByProps({ placeholder: 'Search companies…' }).props.onChangeText('str');
       });
-      expect(lastCall()[0]).toBe('');
+      expect(lastQuery()).toBe('');
       act(() => {
         renderer.root.findByProps({ placeholder: 'Search companies…' }).props.onChangeText('stripe');
       });
-      expect(lastCall()[0]).toBe('');
+      expect(lastQuery()).toBe('');
       act(() => {
         jest.advanceTimersByTime(300);
       });
-      expect(lastCall()[0]).toBe('stripe');
+      expect(lastQuery()).toBe('stripe');
     } finally {
       jest.useRealTimers();
     }
-  });
-
-  it('switches sort order without waiting for a debounce', () => {
-    const renderer = render();
-    act(() => {
-      renderer.root.findByProps({ accessibilityLabel: 'Sort by rating' }).props.onPress();
-    });
-    expect(lastCall()).toEqual(['', 'rating']);
   });
 });

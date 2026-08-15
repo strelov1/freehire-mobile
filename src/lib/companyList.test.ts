@@ -1,4 +1,4 @@
-import { companyListParams, DEFAULT_COMPANY_SORT, nextCompanyOffset } from './companyList';
+import { companyListParams, nextCompanyOffset } from './companyList';
 
 describe('nextCompanyOffset', () => {
   const page = (offset: number, count: number, total: number) => ({
@@ -28,34 +28,29 @@ describe('nextCompanyOffset', () => {
 
 describe('companyListParams', () => {
   it('always carries the page window', () => {
-    const p = companyListParams('', DEFAULT_COMPANY_SORT, 20, 40);
+    const p = companyListParams('', 20, 40);
     expect(p.get('limit')).toBe('20');
     expect(p.get('offset')).toBe('40');
   });
 
-  it('omits sort for the default order, so the backend keeps owning the default', () => {
-    expect(companyListParams('', DEFAULT_COMPANY_SORT, 20, 0).has('sort')).toBe(false);
-  });
-
-  it('sends sort=rating for the highest-rated order', () => {
-    expect(companyListParams('', 'rating', 20, 0).get('sort')).toBe('rating');
+  it('never sends a sort, so the backend keeps owning the ordering', () => {
+    expect(companyListParams('', 20, 0).has('sort')).toBe(false);
+    expect(companyListParams('stripe', 20, 0).has('sort')).toBe(false);
   });
 
   it('omits q when the search is empty', () => {
-    expect(companyListParams('', DEFAULT_COMPANY_SORT, 20, 0).has('q')).toBe(false);
+    expect(companyListParams('', 20, 0).has('q')).toBe(false);
   });
 
   it('omits q when the search is whitespace only', () => {
-    expect(companyListParams('   ', DEFAULT_COMPANY_SORT, 20, 0).has('q')).toBe(false);
+    expect(companyListParams('   ', 20, 0).has('q')).toBe(false);
   });
 
   it('trims the search text it does send', () => {
-    expect(companyListParams('  stripe  ', DEFAULT_COMPANY_SORT, 20, 0).get('q')).toBe('stripe');
+    expect(companyListParams('  stripe  ', 20, 0).get('q')).toBe('stripe');
   });
 
-  it('combines a search with a non-default sort', () => {
-    expect(companyListParams('stripe', 'rating', 20, 0).toString()).toBe(
-      'q=stripe&sort=rating&limit=20&offset=0',
-    );
+  it('serializes a searched page in full', () => {
+    expect(companyListParams('stripe', 20, 40).toString()).toBe('q=stripe&limit=20&offset=40');
   });
 });

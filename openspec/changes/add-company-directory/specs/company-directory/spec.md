@@ -43,24 +43,19 @@ The directory SHALL provide a text field that searches companies via the endpoin
 - **WHEN** the user clears a non-empty search field
 - **THEN** the list returns to the unfiltered catalog starting from the first page
 
-### Requirement: Company sort order
+### Requirement: Company ordering
 
-The directory SHALL offer two sort orders: most active (the backend's default ordering by open-role count) and highest rated (`sort=rating`). Most active SHALL be the initial selection, and selecting it SHALL omit the `sort` parameter from the request rather than sending its name explicitly. Changing the sort SHALL restart pagination from the first page.
+The directory SHALL present companies in the backend's own order (most open roles first) and SHALL offer no sort control. It SHALL NOT send a `sort` parameter, so a change to the server's default ordering reaches this client rather than being pinned by an explicit value.
 
-#### Scenario: Default sort omits the parameter
+#### Scenario: No sort is requested
 
-- **WHEN** the directory is listed with the default sort selected
+- **WHEN** the directory requests any page, searched or not
 - **THEN** the request carries no `sort` parameter
 
-#### Scenario: Selecting highest rated
+#### Scenario: No sort control is offered
 
-- **WHEN** the user selects the highest-rated sort
-- **THEN** the request carries `sort=rating` and the list reloads from the first page
-
-#### Scenario: Sort selection is visible
-
-- **WHEN** either sort order is selected
-- **THEN** that option is rendered in the selected state and the other is not
+- **WHEN** the directory renders
+- **THEN** the screen presents no control for changing the order
 
 ### Requirement: Company card content
 
@@ -121,9 +116,9 @@ The directory SHALL render distinct loading, error and empty states around the l
 
 ### Requirement: Directory refresh
 
-The directory SHALL support pull-to-refresh, refetching from the first page under the current search and sort.
+The directory SHALL support pull-to-refresh, refetching from the first page under the current search.
 
 #### Scenario: Pull to refresh
 
 - **WHEN** the user pulls the list down
-- **THEN** the current search and sort are refetched from the first page and the refreshing indicator is shown while in flight
+- **THEN** the current search is refetched from the first page and the refreshing indicator is shown while in flight

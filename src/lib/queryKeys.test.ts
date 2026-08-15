@@ -3,11 +3,11 @@ import { QueryClient } from '@tanstack/react-query';
 import { PrivateMutationRegistry, clearPrivateUserData, privateKeys, publicKeys } from './queryKeys';
 
 describe('company directory keys', () => {
-  it('separates a cache entry per settled search and sort', () => {
-    const base = publicKeys.companies.search('stripe', 'job_count');
-    expect(base).toEqual(['public', 'companies', 'search', 'stripe', 'job_count']);
-    expect(publicKeys.companies.search('stripe', 'rating')).not.toEqual(base);
-    expect(publicKeys.companies.search('vercel', 'job_count')).not.toEqual(base);
+  it('separates a cache entry per settled search', () => {
+    const base = publicKeys.companies.search('stripe');
+    expect(base).toEqual(['public', 'companies', 'search', 'stripe']);
+    expect(publicKeys.companies.search('vercel')).not.toEqual(base);
+    expect(publicKeys.companies.search('')).not.toEqual(base);
   });
 });
 

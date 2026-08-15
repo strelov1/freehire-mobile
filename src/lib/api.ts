@@ -1,5 +1,5 @@
 /** Public/job API functions. Authentication calls live in features/auth/api. */
-import { companyListParams, type CompanySort } from './companyList';
+import { companyListParams } from './companyList';
 import { ApiError, request } from './transport';
 import type {
   CompanyListItem,
@@ -211,12 +211,11 @@ export async function getJob(slug: string, signal?: AbortSignal): Promise<Job> {
 
 export function listCompanies(
   q: string,
-  sort: CompanySort,
   limit: number,
   offset: number,
   signal?: AbortSignal,
 ): Promise<Page<CompanyListItem>> {
-  const params = companyListParams(q, sort, limit, offset);
+  const params = companyListParams(q, limit, offset);
   return request<Page<CompanyListItem>>(`/api/v1/companies?${params.toString()}`, {
     authMode: 'public',
     signal,
