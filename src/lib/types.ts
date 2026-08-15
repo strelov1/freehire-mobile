@@ -177,6 +177,25 @@ export type Company = {
   feedback_rating_avg: number | null;
 };
 
+/** One row of the company directory, as returned by the company LIST endpoint.
+ *  Deliberately not the same type as `Company`: the two endpoints serve
+ *  different projections — the list carries `job_count` and `collections`,
+ *  which the detail payload has no notion of, and omits everything under
+ *  `company_info`. The backend keeps them apart for the same reason (see
+ *  `companyListItem` in `hire/internal/handler/companies.go`), so folding both
+ *  into one optional-riddled type here would only lose that guarantee. */
+export type CompanyListItem = {
+  slug: string;
+  name: string;
+  job_count: number;
+  tagline?: string | null;
+  industries?: string[] | null;
+  hq_country?: string | null;
+  collections?: string[] | null;
+  feedback_count: number;
+  feedback_rating_avg: number | null;
+};
+
 /** The company-detail endpoint's payload: the company plus its job list and
  *  whether a referral is available for it. */
 export type CompanyPage = {

@@ -9,16 +9,24 @@ export function Chip({
   selected,
   colors,
   onPress,
+  accessibilityLabel,
 }: {
   label: string;
   count?: number;
   selected: boolean;
   colors: ReturnType<typeof getColors>;
   onPress: () => void;
+  /** Spoken name, when the visible label alone doesn't say what the chip does
+   *  — the directory's sort chips read "Most active" but mean "sort by open
+   *  roles". Defaults to the visible label. */
+  accessibilityLabel?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ selected }}
       style={({ pressed }) => [
         styles.chip,
         selected

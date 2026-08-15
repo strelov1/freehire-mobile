@@ -1,6 +1,8 @@
 /** Public/job API functions. Authentication calls live in features/auth/api. */
+import { companyListParams, type CompanySort } from './companyList';
 import { ApiError, request } from './transport';
 import type {
+  CompanyListItem,
   CompanyPage,
   FacetCounts,
   Job,
@@ -205,6 +207,20 @@ export async function getJob(slug: string, signal?: AbortSignal): Promise<Job> {
     signal,
   });
   return data;
+}
+
+export function listCompanies(
+  q: string,
+  sort: CompanySort,
+  limit: number,
+  offset: number,
+  signal?: AbortSignal,
+): Promise<Page<CompanyListItem>> {
+  const params = companyListParams(q, sort, limit, offset);
+  return request<Page<CompanyListItem>>(`/api/v1/companies?${params.toString()}`, {
+    authMode: 'public',
+    signal,
+  });
 }
 
 export async function getCompany(
