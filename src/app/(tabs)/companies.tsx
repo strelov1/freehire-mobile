@@ -45,7 +45,12 @@ export default function CompaniesScreen() {
   const c = getColors(useColorScheme());
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<CompanySort>(DEFAULT_COMPANY_SORT);
-  const settledQuery = useDebounced(query, SEARCH_DEBOUNCE_MS);
+  // Trimmed BEFORE the debounce, so the query key and the request agree on what
+  // the search is. Keying on the raw text would make "stripe " a different cache
+  // entry from "stripe" while producing a byte-identical request — the list
+  // would blank to a spinner and refetch the page it already had, over a typed
+  // trailing space. It also stops such a keystroke from restarting the timer.
+  const settledQuery = useDebounced(query.trim(), SEARCH_DEBOUNCE_MS);
 
   const {
     data,
@@ -87,6 +92,8 @@ export default function CompaniesScreen() {
         ) : null}
       </View>
       <View style={styles.toolbar}>
+        {/* An unfiltered `total` is a planner estimate server-side, not an exact
+            count, so this figure can drift between loads. Same on the web. */}
         {total > 0 ? (
           <Text style={[styles.count, { color: c.mutedForeground }]}>
             {total.toLocaleString('en-US')} {total === 1 ? 'company' : 'companies'}
@@ -134,16 +141,19 @@ export default function CompaniesScreen() {
       </View>
     );
   } else if (companies.length === 0) {
+    // Keyed on the SETTLED query, which is what produced this empty result. The
+    // raw one would, for the debounce window after a clear, claim the catalog
+    // itself is empty and drop the escape hatch.
     body = (
       <View style={[styles.fill, styles.center]}>
         <Text style={[styles.stateText, { color: c.mutedForeground }]}>
-          {query ? 'No companies match your search.' : 'No companies yet.'}
+          {settledQuery ? 'No companies match your search.' : 'No companies yet.'}
         </Text>
-        {query ? (
+        {settledQuery ? (
           <Text
             onPress={() => setQuery('')}
             accessibilityRole="button"
-            accessibilityLabel="Clear search"
+            accessibilityLabel="Clear search and show all companies"
             style={[styles.action, { color: c.brand }]}>
             Clear search
           </Text>

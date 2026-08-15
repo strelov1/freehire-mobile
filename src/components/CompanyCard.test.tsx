@@ -71,10 +71,16 @@ describe('CompanyCard', () => {
     expect(shown).toEqual(['Stripe', '82 jobs']);
   });
 
+  it('leaves the card unlabelled so a screen reader reads every fact on it', () => {
+    // An explicit accessibilityLabel on the Pressable would replace all of this.
+    const card = render(base).root.findAllByProps({ accessibilityRole: 'button' })[0]!;
+    expect(card.props.accessibilityLabel).toBeUndefined();
+  });
+
   it('opens the company screen on press', () => {
     const renderer = render(base);
     act(() => {
-      renderer.root.findByProps({ accessibilityLabel: 'Stripe, 82 jobs' }).props.onPress();
+      renderer.root.findAllByProps({ accessibilityRole: 'button' })[0]!.props.onPress();
     });
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/companies/[slug]',

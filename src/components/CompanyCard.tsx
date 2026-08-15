@@ -30,10 +30,13 @@ export const CompanyCard = memo(function CompanyCard({ company }: { company: Com
   const rating = company.feedback_rating_avg;
   const jobs = `${company.job_count.toLocaleString('en-US')} ${company.job_count === 1 ? 'job' : 'jobs'}`;
 
+  // The card carries no accessibilityLabel of its own, like `JobCard`'s: a
+  // Pressable is accessible by default, so an explicit label REPLACES its
+  // children's text rather than adding to it — it would silence the rating,
+  // tagline and chips on a screen whose headline feature is sorting by rating.
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${company.name}, ${jobs}`}
       onPress={() => router.push({ pathname: '/companies/[slug]', params: { slug: company.slug } })}
       style={({ pressed }) => [
         styles.card,
@@ -70,8 +73,10 @@ export const CompanyCard = memo(function CompanyCard({ company }: { company: Com
 
         {chips.length > 0 ? (
           <View style={styles.chipRow}>
-            {chips.map((chip) => (
-              <View key={chip} style={[styles.chip, { borderColor: c.border }]}>
+            {/* Keyed by position, not value: an industry could read the same as
+                a two-letter country code and collide. */}
+            {chips.map((chip, i) => (
+              <View key={`${i}-${chip}`} style={[styles.chip, { borderColor: c.border }]}>
                 <Text style={[styles.chipText, { color: c.mutedForeground }]}>{chip}</Text>
               </View>
             ))}

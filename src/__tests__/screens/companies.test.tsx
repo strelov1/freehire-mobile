@@ -118,29 +118,106 @@ describe('CompaniesScreen (src/app/(tabs)/companies.tsx)', () => {
   });
 
   it('offers to clear the search when a search matched nothing', () => {
-    mockedUseCompanySearch.mockReturnValue(hookResult({ data: { pages: [page([], 0)] } }));
-    const renderer = render();
-    act(() => {
-      renderer.root
-        .findByProps({ placeholder: 'Search companies…' })
-        .props.onChangeText('nothingmatchesthis');
-    });
-    expect(renderedText(renderer)).toContain('No companies match your search.');
-    // Two by design: the field's own ✕ and the empty state's escape hatch, the
-    // same pairing the job feed offers. The empty state's is the last one.
-    const clears = renderer.root.findAllByProps({ accessibilityLabel: 'Clear search' });
-    expect(clears.length).toBeGreaterThan(0);
-    act(() => {
-      clears[clears.length - 1]!.props.onPress();
-    });
-    expect(renderedText(renderer)).not.toContain('No companies match your search.');
+    jest.useFakeTimers();
+    try {
+      mockedUseCompanySearch.mockReturnValue(hookResult({ data: { pages: [page([], 0)] } }));
+      const renderer = render();
+      act(() => {
+        renderer.root
+          .findByProps({ placeholder: 'Search companies…' })
+          .props.onChangeText('nothingmatchesthis');
+      });
+      // The empty state follows the SETTLED search, so it only calls this a
+      // failed search once that search has actually been made.
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      expect(renderedText(renderer)).toContain('No companies match your search.');
+      act(() => {
+        renderer.root
+          .findByProps({ accessibilityLabel: 'Clear search and show all companies' })
+          .props.onPress();
+      });
+      // Separate act: the debounce timer for the cleared value is only scheduled
+      // once the state update has committed, so advancing inside the same block
+      // would fire the OLD timer and leave the new one pending.
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      expect(renderedText(renderer)).not.toContain('No companies match your search.');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('does not offer to clear a search when the catalog itself is empty', () => {
     mockedUseCompanySearch.mockReturnValue(hookResult({ data: { pages: [page([], 0)] } }));
     const renderer = render();
     expect(renderedText(renderer)).toContain('No companies yet.');
-    expect(renderer.root.findAllByProps({ accessibilityLabel: 'Clear search' })).toHaveLength(0);
+    expect(
+      renderer.root.findAllByProps({ accessibilityLabel: 'Clear search and show all companies' }),
+    ).toHaveLength(0);
+  });
+
+  it('keeps the search field usable while the first page is loading', () => {
+    mockedUseCompanySearch.mockReturnValue(hookResult({ isLoading: true, data: undefined }));
+    const renderer = render();
+    expect(renderer.root.findByProps({ placeholder: 'Search companies…' })).toBeTruthy();
+    expect(renderedText(renderer)).not.toContain('No companies yet.');
+  });
+
+  it('marks the active sort as selected', () => {
+    const renderer = render();
+    // Role narrows this to the Pressable: the `Chip` element itself also carries
+    // the label, but only the pressable underneath carries the state.
+    const chip = (label: string) =>
+      renderer.root.findAllByProps({ accessibilityLabel: label, accessibilityRole: 'button' })[0]!;
+    expect(chip('Sort by open roles').props.accessibilityState).toEqual({ selected: true });
+    expect(chip('Sort by rating').props.accessibilityState).toEqual({ selected: false });
+    act(() => {
+      chip('Sort by rating').props.onPress();
+    });
+    expect(chip('Sort by rating').props.accessibilityState).toEqual({ selected: true });
+    expect(chip('Sort by open roles').props.accessibilityState).toEqual({ selected: false });
+  });
+
+  it('loads the next page when the list end comes into view', () => {
+    mockedUseCompanySearch.mockReturnValue(hookResult({ hasNextPage: true }));
+    const renderer = render();
+    // FlashList fires onEndReached itself once on mount (the short list is
+    // already at its end), so count only the deliberate one.
+    fetchNextPage.mockClear();
+    act(() => {
+      renderer.root.findByProps({ onEndReachedThreshold: 0.6 }).props.onEndReached();
+    });
+    expect(fetchNextPage).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not stack a second next-page request on top of one in flight', () => {
+    mockedUseCompanySearch.mockReturnValue(
+      hookResult({ hasNextPage: true, isFetchingNextPage: true }),
+    );
+    const renderer = render();
+    act(() => {
+      renderer.root.findByProps({ onEndReachedThreshold: 0.6 }).props.onEndReached();
+    });
+    expect(fetchNextPage).not.toHaveBeenCalled();
+  });
+
+  it('does not ask for a page past the end of the catalog', () => {
+    const renderer = render();
+    act(() => {
+      renderer.root.findByProps({ onEndReachedThreshold: 0.6 }).props.onEndReached();
+    });
+    expect(fetchNextPage).not.toHaveBeenCalled();
+  });
+
+  it('refetches on pull to refresh', () => {
+    const renderer = render();
+    act(() => {
+      renderer.root.findByProps({ onEndReachedThreshold: 0.6 }).props.refreshControl.props.onRefresh();
+    });
+    expect(refetch).toHaveBeenCalled();
   });
 
   it('debounces typing: the data layer only sees the settled text', () => {

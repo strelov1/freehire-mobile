@@ -18,5 +18,10 @@ export function useCompanySearch(settledQuery: string, sort: CompanySort) {
     queryFn: ({ pageParam, signal }) =>
       listCompanies(settledQuery, sort, COMPANY_PAGE_SIZE, pageParam, signal),
     getNextPageParam: nextCompanyOffset,
+    // Hold the last result on screen while the next one loads, instead of
+    // dropping to a full-screen spinner on every settled keystroke. `isLoading`
+    // stays true only until the FIRST page exists, which is the one moment the
+    // screen has nothing to show. Same idiom as `useFacetCounts`.
+    placeholderData: (prev) => prev,
   });
 }
