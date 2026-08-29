@@ -16,6 +16,9 @@ describe('private query ownership', () => {
     expect(privateKeys.root(7)).toEqual(['private', 7]);
     expect(privateKeys.savedJobs(7)).toEqual(['private', 7, 'saved-jobs']);
     expect(privateKeys.savedJobs(8)).not.toEqual(privateKeys.savedJobs(7));
+    expect(privateKeys.tracker(7)).toEqual(['private', 7, 'tracker']);
+    expect(privateKeys.trackerList(7, 'board')).toEqual(['private', 7, 'tracker', 'list', 'board']);
+    expect(privateKeys.trackerPipeline(7)).toEqual(['private', 7, 'tracker', 'pipeline']);
   });
 
   it('aborts only mutation transports belonging to the leaving user', () => {
@@ -33,6 +36,8 @@ describe('private query ownership', () => {
     const registry = new PrivateMutationRegistry();
     queryClient.setQueryData(privateKeys.savedJobs(1), ['old']);
     queryClient.setQueryData(privateKeys.savedJobs(2), ['new']);
+    queryClient.setQueryData(privateKeys.trackerList(1, 'board'), { data: ['old'] });
+    queryClient.setQueryData(privateKeys.trackerList(2, 'board'), { data: ['new'] });
     queryClient.setQueryData(['public', 'jobs'], ['feed']);
     const oldMutation = registry.create(1, 4);
 
@@ -40,7 +45,9 @@ describe('private query ownership', () => {
 
     expect(oldMutation.signal.aborted).toBe(true);
     expect(queryClient.getQueryData(privateKeys.savedJobs(1))).toBeUndefined();
+    expect(queryClient.getQueryData(privateKeys.trackerList(1, 'board'))).toBeUndefined();
     expect(queryClient.getQueryData(privateKeys.savedJobs(2))).toEqual(['new']);
+    expect(queryClient.getQueryData(privateKeys.trackerList(2, 'board'))).toEqual({ data: ['new'] });
     expect(queryClient.getQueryData(['public', 'jobs'])).toEqual(['feed']);
     queryClient.clear();
   });

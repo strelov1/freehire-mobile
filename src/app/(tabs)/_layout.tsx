@@ -13,6 +13,7 @@ import { useUnreadCount } from '@/lib/useNotifications';
 const ROUTE_META: Record<string, { label: string; icon: SFSymbol; iconFilled: SFSymbol }> = {
   index: { label: 'Jobs', icon: 'briefcase', iconFilled: 'briefcase.fill' },
   companies: { label: 'Companies', icon: 'building.2', iconFilled: 'building.2.fill' },
+  tracker: { label: 'Tracker', icon: 'tray.2' as SFSymbol, iconFilled: 'tray.2.fill' as SFSymbol },
   notifications: { label: 'Notifications', icon: 'bell', iconFilled: 'bell.fill' },
   profile: { label: 'Profile', icon: 'person.crop.circle', iconFilled: 'person.crop.circle.fill' },
 };
@@ -109,6 +110,7 @@ export default function TabsLayout() {
       tabBar={(props) => <AnimatedTabBar {...props} />}>
       <Tabs.Screen name="index" />
       <Tabs.Screen name="companies" />
+      <Tabs.Screen name="tracker" />
       <Tabs.Screen name="notifications" />
       <Tabs.Screen name="profile" />
     </Tabs>

@@ -21,6 +21,10 @@ export const privateKeys = {
   savedJobs: (userId: number) => ['private', userId, 'saved-jobs'] as const,
   signedOutSavedJobs: ['private', 'none', 'saved-jobs'] as const,
   identities: (userId: number) => ['private', userId, 'identities'] as const,
+  tracker: (userId: number) => ['private', userId, 'tracker'] as const,
+  trackerList: (userId: number, filter: string = 'board') =>
+    ['private', userId, 'tracker', 'list', filter] as const,
+  trackerPipeline: (userId: number) => ['private', userId, 'tracker', 'pipeline'] as const,
 };
 
 export function isPrivateQueryForUser(userId: number) {

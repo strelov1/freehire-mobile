@@ -55,6 +55,9 @@ export function useSavedJobs() {
           queryKey: privateKeys.savedJobs(variables.owner.userId),
           exact: true,
         });
+        void queryClient.invalidateQueries({
+          queryKey: privateKeys.tracker(variables.owner.userId),
+        });
       }
     },
   });

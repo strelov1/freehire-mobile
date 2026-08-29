@@ -9,8 +9,10 @@ import type {
   NotificationItem,
   NotificationsPage,
   Page,
+  PipelineStats,
   PushDevice,
   TestPushResult,
+  TrackingPage,
   UserJob,
   UserProfile,
 } from './types';
@@ -62,6 +64,125 @@ export async function savedSlugs(sessionEpoch: number, signal?: AbortSignal): Pr
     cache: 'no-store',
   });
   return data ?? [];
+}
+
+// --- Application Tracker (session-scoped) -----------------------------------
+
+export async function getTrackedJobs(
+  filter: string = 'board',
+  limit: number = 500,
+  offset: number = 0,
+  sessionEpoch: number,
+  signal?: AbortSignal,
+): Promise<TrackingPage> {
+  const params = new URLSearchParams();
+  params.set('filter', filter);
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
+  return request<TrackingPage>(`/api/v1/me/tracking?${params.toString()}`, {
+    authMode: 'required',
+    sessionEpoch,
+    signal,
+    cache: 'no-store',
+  });
+}
+
+export async function getTrackingPipeline(
+  sessionEpoch: number,
+  signal?: AbortSignal,
+): Promise<PipelineStats> {
+  const { data } = await request<{ data: PipelineStats }>('/api/v1/me/tracking/pipeline', {
+    authMode: 'required',
+    sessionEpoch,
+    signal,
+    cache: 'no-store',
+  });
+  return {
+    total: data?.total ?? 0,
+    stages: data?.stages ?? {},
+  };
+}
+
+export async function markJobApplied(
+  slug: string,
+  sessionEpoch: number,
+  appliedOn?: string,
+  signal?: AbortSignal,
+): Promise<UserJob> {
+  const body = appliedOn ? { applied_on: appliedOn } : undefined;
+  const { data } = await request<{ data: UserJob }>(
+    `/api/v1/jobs/${encodeURIComponent(slug)}/apply`,
+    {
+      method: 'POST',
+      authMode: 'required',
+      sessionEpoch,
+      body,
+      signal,
+      cache: 'no-store',
+    },
+  );
+  return data;
+}
+
+export async function trackApplication(
+  id: string,
+  stage: string | null | undefined,
+  notes: string | null | undefined,
+  sessionEpoch: number,
+  signal?: AbortSignal,
+): Promise<UserJob> {
+  const body: { stage?: string | null; notes?: string | null } = {};
+  if (stage !== undefined) body.stage = stage;
+  if (notes !== undefined) body.notes = notes;
+
+  const { data } = await request<{ data: UserJob }>(
+    `/api/v1/me/applications/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      authMode: 'required',
+      sessionEpoch,
+      body,
+      signal,
+      cache: 'no-store',
+    },
+  );
+  return data;
+}
+
+export async function clearApplicationStage(
+  id: string,
+  sessionEpoch: number,
+  signal?: AbortSignal,
+): Promise<UserJob> {
+  const { data } = await request<{ data: UserJob }>(
+    `/api/v1/me/applications/${encodeURIComponent(id)}/stage`,
+    {
+      method: 'DELETE',
+      authMode: 'required',
+      sessionEpoch,
+      signal,
+      cache: 'no-store',
+    },
+  );
+  return data;
+}
+
+export async function untrackApplication(
+  id: string,
+  sessionEpoch: number,
+  signal?: AbortSignal,
+): Promise<UserJob> {
+  const { data } = await request<{ data: UserJob }>(
+    `/api/v1/me/applications/${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+      authMode: 'required',
+      sessionEpoch,
+      signal,
+      cache: 'no-store',
+    },
+  );
+  return data;
 }
 
 // --- Dismissed (hidden) jobs (session-scoped) -------------------------------

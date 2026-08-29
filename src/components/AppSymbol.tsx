@@ -32,6 +32,13 @@ const SYMBOL_MAP: Record<string, IconMapping> = {
   'person.fill': { family: 'ionicons', name: 'person' },
   'person.crop.circle': { family: 'ionicons', name: 'person-circle-outline' },
   'person.crop.circle.fill': { family: 'ionicons', name: 'person-circle' },
+  'tray.2': { family: 'ionicons', name: 'layers-outline' },
+  'tray.2.fill': { family: 'ionicons', name: 'layers' },
+  'doc.text': { family: 'ionicons', name: 'document-text-outline' },
+  'doc.text.fill': { family: 'ionicons', name: 'document-text' },
+  paperplane: { family: 'ionicons', name: 'paper-plane-outline' },
+  'paperplane.fill': { family: 'ionicons', name: 'paper-plane' },
+  'arrow.counterclockwise': { family: 'ionicons', name: 'refresh-outline' },
 
   // Navigation & Chevrons
   'chevron.left': { family: 'ionicons', name: 'chevron-back' },

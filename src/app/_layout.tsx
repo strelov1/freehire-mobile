@@ -84,7 +84,7 @@ export default function RootLayout() {
                     headerTitleStyle: { color: c.foreground },
                     contentStyle: { backgroundColor: c.background },
                   }}>
-                  {/* The 4-tab bottom nav (Jobs/Companies/Notifications/Profile)
+                  {/* The 5-tab bottom nav (Jobs/Companies/Tracker/Notifications/Profile)
                       is the app's root — see (tabs)/_layout.tsx. */}
                   <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                   {/* No native header — the detail screen draws its own compact back
@@ -93,6 +93,8 @@ export default function RootLayout() {
                   {/* Same no-native-header treatment as jobs/[slug] — this screen
                       draws its own compact back chevron too. */}
                   <Stack.Screen name="companies/[slug]" options={{ headerShown: false }} />
+                  {/* Tracker application detail and editor */}
+                  <Stack.Screen name="tracker/[id]" options={{ headerShown: false }} />
                   {/* Filters and auth present as modals over the tab bar. */}
                   <Stack.Screen name="filters" options={{ headerShown: false, presentation: 'modal' }} />
                   {/* Region + Work format only — reached via the feed search

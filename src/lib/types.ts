@@ -100,12 +100,87 @@ export type UserProfile = {
   location_preferences: LocationPreferences | null;
 };
 
-/** A user's interaction with one job. Returned by the save endpoints; `saved_at`
- *  is set when saved and null once cleared. */
+/** A user's interaction with one job. Returned by save/apply/track endpoints. */
 export type UserJob = {
+  job_id?: number;
+  viewed_at?: string | null;
   saved_at: string | null;
   applied_at: string | null;
+  dismissed_at?: string | null;
+  stage?: string | null;
+  notes?: string | null;
 };
+
+/**
+ * Compact list-row projection of a job for tracking (mirrors backend's jobview.Card).
+ * Subset of Job fields with descriptions omitted for performance.
+ */
+export type TrackerJobCard = {
+  public_slug: string;
+  title: string;
+  company: string;
+  closed_at?: string | null;
+  work_mode?: string;
+  seniority?: string;
+  employment_type?: string;
+  countries?: string[];
+  regions?: string[];
+  skills?: string[];
+  collections?: string[];
+  posted_at?: string | null;
+  blurb?: string;
+};
+
+/**
+ * One item in the tracking listing (mirrors backend's myJobResponse).
+ * ID is the row id (either a posting slug, or a<id> when pruned).
+ * job is null when the posting has been pruned from catalogue.
+ */
+export type TrackedJob = {
+  id: string;
+  company_slug: string;
+  role_title: string;
+  job: TrackerJobCard | null;
+  viewed_at: string | null;
+  saved_at: string | null;
+  applied_at: string | null;
+  stage: string | null;
+  notes: string | null;
+  email_count: number;
+  last_activity_at: string | null;
+  days_silent: number | null;
+  silence_state: string | null;
+  followed_up_at: string | null;
+  cv_opened_at: string | null;
+};
+
+/** The per-filter counts for the tracking tabs/chips. */
+export type TrackingCounts = {
+  all: number;
+  viewed: number;
+  saved: number;
+  applied: number;
+  board: number;
+  dismissed: number;
+};
+
+/** The tracking listing envelope returned by GET /api/v1/me/tracking. */
+export type TrackingPage = {
+  data: TrackedJob[];
+  meta: {
+    total: number;
+    limit: number;
+    offset: number;
+    counts: TrackingCounts;
+  };
+};
+
+/** Pipeline snapshot returned by GET /api/v1/me/tracking/pipeline. */
+export type PipelineStats = {
+  total: number;
+  stages: Record<string, number>;
+};
+
 
 /** One device registered to receive push notifications. `token` is this app
  *  install's Expo push token — the only field that identifies *which* device a
