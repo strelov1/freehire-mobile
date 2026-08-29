@@ -232,6 +232,28 @@ export function isJobMatch(item: TrackedJob, idOrSlug: string): boolean {
 
 // --- Pure Optimistic Cache Updates ------------------------------------------
 
+/**
+ * Thrown by a multi-call mutation whose earlier call already landed on the
+ * server. `moveToSaved` is the one that can: it bookmarks the job, then clears
+ * the application stage, and only the second half can fail on its own.
+ */
+export class PartialTrackerError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'PartialTrackerError';
+  }
+}
+
+/**
+ * Whether a failed mutation should have its optimistic patch rolled back.
+ * A partial failure must not: the server did apply part of the change, so
+ * restoring the pre-mutation snapshot would show state that no longer exists.
+ * The refetch that follows settles the row against the server either way.
+ */
+export function shouldRollbackOptimisticPatch(err: unknown): boolean {
+  return !(err instanceof PartialTrackerError);
+}
+
 export function optimisticPatchStage(
   oldPage: TrackingPage | undefined,
   idOrSlug: string,

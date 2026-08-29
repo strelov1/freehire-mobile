@@ -15,6 +15,8 @@ import {
   optimisticPatchNotes,
   optimisticPatchStage,
   optimisticRemoveJob,
+  PartialTrackerError,
+  shouldRollbackOptimisticPatch,
   stageLabel,
 } from './tracker';
 import type { TrackedJob, TrackingPage } from './types';
@@ -276,6 +278,16 @@ describe('optimistic cache transforms', () => {
     expect(updated?.data[0]?.applied_at).toBeNull();
     expect(updated?.data[0]?.stage).toBeNull();
     expect(updated?.data[0]?.silence_state).toBeNull();
+  });
+
+  it('rolls the optimistic patch back for an ordinary failure but not a partial one', () => {
+    expect(shouldRollbackOptimisticPatch(new Error('Network request failed'))).toBe(true);
+    expect(shouldRollbackOptimisticPatch(undefined)).toBe(true);
+    expect(
+      shouldRollbackOptimisticPatch(
+        new PartialTrackerError("Saved to bookmarks, but couldn't clear application progress."),
+      ),
+    ).toBe(false);
   });
 
   it('matches by job public_slug across optimistic patchers', () => {

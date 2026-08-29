@@ -230,7 +230,7 @@ export default function TrackerScreen() {
           renderItem={({ item }) => (
             <ApplicationCard
               item={item}
-              onPress={() => router.push({ pathname: '/tracker/[id]' as any, params: { id: item.id } })}
+              onPress={() => router.push({ pathname: '/tracker/[id]', params: { id: item.id } })}
             />
           )}
           contentContainerStyle={styles.listContent}
@@ -333,7 +333,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     padding: Space.xl,
     alignItems: 'center',
-    textAlign: 'center',
     gap: Space.sm,
     marginHorizontal: Space.lg,
   },

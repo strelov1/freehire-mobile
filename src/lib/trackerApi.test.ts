@@ -57,7 +57,7 @@ describe('tracker API contract transports', () => {
 
     global.fetch = jest.fn().mockResolvedValue(mockResponse(200, fakeData));
 
-    const result = await getTrackedJobs('board', 500, 0, 42);
+    const result = await getTrackedJobs(42, 'board', 500, 0);
 
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/v1/me/tracking?filter=board&limit=500&offset=0'),

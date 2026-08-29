@@ -13,7 +13,7 @@ import { useUnreadCount } from '@/lib/useNotifications';
 const ROUTE_META: Record<string, { label: string; icon: SFSymbol; iconFilled: SFSymbol }> = {
   index: { label: 'Jobs', icon: 'briefcase', iconFilled: 'briefcase.fill' },
   companies: { label: 'Companies', icon: 'building.2', iconFilled: 'building.2.fill' },
-  tracker: { label: 'Tracker', icon: 'tray.2' as SFSymbol, iconFilled: 'tray.2.fill' as SFSymbol },
+  tracker: { label: 'Tracker', icon: 'tray.2', iconFilled: 'tray.2.fill' },
   notifications: { label: 'Notifications', icon: 'bell', iconFilled: 'bell.fill' },
   profile: { label: 'Profile', icon: 'person.crop.circle', iconFilled: 'person.crop.circle.fill' },
 };

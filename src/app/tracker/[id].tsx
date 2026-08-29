@@ -40,7 +40,7 @@ function BackButton({ color }: { color: string }) {
       accessibilityRole="button"
       accessibilityLabel="Back"
       hitSlop={12}
-      onPress={() => (router.canGoBack() ? router.back() : router.replace('/' as any))}
+      onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
       style={({ pressed }) => [styles.back, pressed && { opacity: 0.5 }]}>
       <AppSymbol name="chevron.left" size={22} weight="semibold" tintColor={color} />
     </Pressable>
@@ -84,10 +84,7 @@ export default function TrackerDetailScreen() {
   } | null>(null);
 
   const showError = useCallback((title: string, err: unknown) => {
-    const message =
-      err instanceof Error
-        ? err.message
-        : (err as any)?.message ?? 'An unexpected error occurred';
+    const message = err instanceof Error ? err.message : 'An unexpected error occurred';
     setConfirmModal({
       visible: true,
       title,
@@ -116,7 +113,7 @@ export default function TrackerDetailScreen() {
           This application may have been removed or is unavailable.
         </Text>
         <Pressable
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/' as any))}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
           accessibilityRole="button"
           accessibilityLabel="Go back to applications"
           style={[styles.primaryButton, { backgroundColor: c.brand, marginTop: Space.md }]}>
@@ -215,7 +212,7 @@ export default function TrackerDetailScreen() {
         try {
           await removeFromTracker(currentApp.id);
           if (router.canGoBack()) router.back();
-          else router.replace('/' as any);
+          else router.replace('/');
         } catch (err) {
           showError('Error', err);
         }
