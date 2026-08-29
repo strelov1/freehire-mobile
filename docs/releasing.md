@@ -138,6 +138,15 @@ build or distribution steps only has to be made in one place.
 
 ## Traps that have already cost a day
 
+- **`eas submit` needs `ascAppId` spelled out to run non-interactively.**
+  Without it the submission dies two seconds in with `Set ascAppId in the
+  submit profile (eas.json) or re-run this command in interactive mode` —
+  after a full ~7 minute build, since the submit step is what consumes it.
+  Interactively EAS just asks; CI has nobody to ask. It now sits in
+  `submit.production.ios` alongside `appleTeamId`. A build that got this far
+  is fine — `eas submit -p ios --profile production --id <build-id>` ships the
+  existing artifact without rebuilding.
+
 - **A new entitlement or capability in `app.config.ts` invalidates the iOS
   provisioning profile.** The build fails deep inside fastlane, complaining
   that the profile lacks the capability. Regenerate it *before* the next build:
