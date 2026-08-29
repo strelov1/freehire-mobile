@@ -69,10 +69,10 @@ export async function savedSlugs(sessionEpoch: number, signal?: AbortSignal): Pr
 // --- Application Tracker (session-scoped) -----------------------------------
 
 export async function getTrackedJobs(
+  sessionEpoch: number,
   filter: string = 'board',
   limit: number = 500,
   offset: number = 0,
-  sessionEpoch: number,
   signal?: AbortSignal,
 ): Promise<TrackingPage> {
   const params = new URLSearchParams();

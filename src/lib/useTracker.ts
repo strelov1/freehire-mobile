@@ -18,6 +18,8 @@ import {
   optimisticPatchNotes,
   optimisticPatchStage,
   optimisticRemoveJob,
+  PartialTrackerError,
+  shouldRollbackOptimisticPatch,
 } from './tracker';
 import type { TrackingPage, UserJob } from './types';
 import type { SessionOwner } from '@/features/auth/model/authTypes';
@@ -30,7 +32,7 @@ export function useTrackedJobs(filter: string = 'board') {
 
   return useQuery({
     queryKey,
-    queryFn: ({ signal }) => getTrackedJobs(filter, 500, 0, sessionEpoch, signal),
+    queryFn: ({ signal }) => getTrackedJobs(sessionEpoch, filter, 500, 0, signal),
     enabled: !!user,
     staleTime: 30_000,
   });
@@ -117,7 +119,8 @@ function useOptimisticTrackerMutation<TVars extends BaseTrackerVars, TData = unk
       queryClient.setQueryData<TrackingPage>(listKey, (old) => optimisticPatcher(old, vars));
       return { previous, owner: vars.owner };
     },
-    onError: (_err, _vars, context) => {
+    onError: (err, _vars, context) => {
+      if (!shouldRollbackOptimisticPatch(err)) return;
       if (context && isOwnerCurrent(context.owner)) {
         queryClient.setQueryData(
           privateKeys.trackerList(context.owner.userId, 'board'),
@@ -182,7 +185,7 @@ export function useTrackerMutations() {
       try {
         await clearApplicationStage(id, owner.sessionEpoch, transport.signal);
       } catch (err) {
-        throw new Error(
+        throw new PartialTrackerError(
           "Saved to bookmarks, but couldn't clear application progress. Please try again.",
           { cause: err },
         );

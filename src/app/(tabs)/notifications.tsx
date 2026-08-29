@@ -146,7 +146,7 @@ export default function NotificationsScreen() {
     });
     if (item.public_slug) {
       if (item.kind === 'nudge_follow_up' || item.kind === 'nudge_interview_prep') {
-        router.push({ pathname: '/tracker/[id]' as any, params: { id: item.public_slug } });
+        router.push({ pathname: '/tracker/[id]', params: { id: item.public_slug } });
       } else {
         router.push(`/jobs/${item.public_slug}`);
       }
