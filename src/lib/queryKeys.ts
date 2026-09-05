@@ -25,6 +25,13 @@ export const privateKeys = {
   trackerList: (userId: number, filter: string = 'board') =>
     ['private', userId, 'tracker', 'list', filter] as const,
   trackerPipeline: (userId: number) => ['private', userId, 'tracker', 'pipeline'] as const,
+  /** The plan, which is per-account and must not survive a change of who is signed in —
+   *  showing the previous user's Pro to the next one would be both wrong and a way to sell
+   *  them a plan they already have. */
+  plan: (userId: number) => ['private', userId, 'plan'] as const,
+  /** The key a signed-out reader uses. Never populated — there is no plan without an
+   *  account — and it exists so that state is not spelled as a user id nobody has. */
+  signedOutPlan: ['private', 'none', 'plan'] as const,
 };
 
 export function isPrivateQueryForUser(userId: number) {

@@ -18,12 +18,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppSymbol } from '@/components/AppSymbol';
 import { ReauthModal } from '@/components/auth/ReauthModal';
 import { Radius, Space, getColors } from '@/constants/freehire';
+import { storeSubscriptionsURL } from '@/features/billing/storeLinks';
 import { isRecentAuthRequiredError, useRecentAuth } from '@/hooks/useRecentAuth';
 import { useAuth } from '@/lib/authStore';
 import { ApiError } from '@/lib/transport';
 
-const APPLE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions';
-const GOOGLE_SUBSCRIPTIONS_URL = 'https://play.google.com/store/account/subscriptions';
 
 export default function DeleteAccountScreen() {
   const c = getColors(useColorScheme());
@@ -70,7 +69,7 @@ export default function DeleteAccountScreen() {
     confirmEmail.trim().toLowerCase() === userEmail.trim().toLowerCase();
 
   const handleOpenSubscriptions = async () => {
-    const subUrl = Platform.OS === 'ios' ? APPLE_SUBSCRIPTIONS_URL : GOOGLE_SUBSCRIPTIONS_URL;
+    const subUrl = storeSubscriptionsURL();
     try {
       await WebBrowser.openBrowserAsync(subUrl, {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.AUTOMATIC,

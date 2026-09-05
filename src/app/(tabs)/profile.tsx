@@ -16,7 +16,9 @@ import { AppSymbol } from '@/components/AppSymbol';
 import { useAuth } from '@/lib/authStore';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { facetValueLabel, formatDate, profileLocationSummary } from '@/lib/format';
+import { planView } from '@/features/billing/model/planView';
 import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
+import { usePlan } from '@/lib/usePlan';
 import { useProfile } from '@/lib/useProfile';
 
 const PRIVACY_POLICY_URL = 'https://freehire.me/privacy';
@@ -50,7 +52,19 @@ export default function ProfileScreen() {
   const c = getColors(useColorScheme());
   const { user, state, signOut, logoutAll, recordReturnIntent, retryBootstrap } = useAuth();
   const { data: profile, isLoading: profileLoading, isError: profileError } = useProfile();
+  const { data: plan, isError: planError } = usePlan();
   const [busy, setBusy] = useState<'signOut' | 'logoutAll' | null>(null);
+
+  // The row states the plan or states that it could not be read — never a guess. Saying
+  // "Free" over a failed request would be wrong in the one direction that matters: it invites
+  // somebody who is already paying to buy the same plan again.
+  const planRowLabel = planError
+    ? 'Plan · unavailable'
+    : planView({ plan, canPurchase: false }).kind === 'pro'
+      ? 'freehire Pro'
+      : plan
+        ? 'Free plan'
+        : 'Plan';
 
   // A guest opening this tab wants to sign in, so hand them the sheet rather
   // than a screen whose only content is a button that opens it. Once per
@@ -244,6 +258,23 @@ export default function ProfileScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
+        {/* The plan, and the only entry point to the purchase surface. Signed-out visitors get
+            no row at all: there is no plan without an account, and an empty one would read as
+            "free" rather than as "nobody is signed in". */}
+        {user && (
+          <Pressable
+            onPress={() => router.push('/account/plan')}
+            style={({ pressed }) => [
+              styles.actionButton,
+              { borderColor: c.border, backgroundColor: c.card },
+              pressed && { backgroundColor: c.accent },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Plan">
+            <Text style={[styles.actionButtonText, { color: c.foreground }]}>{planRowLabel}</Text>
+          </Pressable>
+        )}
+
         <Pressable
           onPress={() => router.push('/account/security')}
           style={({ pressed }) => [

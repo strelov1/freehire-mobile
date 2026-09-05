@@ -43,6 +43,44 @@ Picking `production` + Firebase by hand now fails in the first seconds with a
 message naming the profile, rather than after a full build with a message about
 `aapt`.
 
+### In-app purchases do not work on this path — Android
+
+**Google Play Billing only works for an app installed from Play.** A tester
+holding the Firebase APK can open the plan screen, see the plan the server
+reports, and get nothing at all where the prices should be: `getOfferings`
+returns an empty offering, because the billing library has no Play install to
+talk to. Nothing is broken and nothing says so — which is why it is written down
+here rather than discovered.
+
+So testing an Android purchase means an **internal testing track** in Play
+Console, with the `production` profile's `.aab` uploaded to it and testers
+invited there. That is a second delivery route alongside Firebase, not a
+replacement: Firebase stays the fast path for everything that is not a purchase.
+
+**iOS has no equivalent problem.** TestFlight builds transact against Apple's
+sandbox, so a purchase can be made, cancelled and restored end to end on the
+`production` profile this pipeline already ships.
+
+### In-app purchases need a capability — iOS
+
+Adding **In-App Purchase** to the App ID invalidates the provisioning profile,
+so `eas credentials -p ios` has to be run interactively once before the next
+build. CI cannot do it. This is the same hazard the entitlement note at the
+bottom of this document describes, and it applies here for the same reason.
+
+The two public RevenueCat keys must also exist in the EAS environment before a
+preview or production build — `app.config.ts` fails the build without them, in
+the first seconds, naming the variable:
+
+```bash
+eas env:create --name EXPO_PUBLIC_REVENUECAT_IOS_KEY --value appl_… --environment preview --visibility plaintext
+eas env:create --name EXPO_PUBLIC_REVENUECAT_ANDROID_KEY --value goog_… --environment preview --visibility plaintext
+```
+
+Repeat for `production`. These are RevenueCat's **public** platform keys, which
+are meant to ship inside the binary. The secret `sk_` key belongs to the server
+and must never appear in an `EXPO_PUBLIC_*` value.
+
 ### Who actually receives it
 
 **iOS** goes to the internal group **`Freehire Test Team`** — [App Store

@@ -13,6 +13,7 @@ import {
   type ReturnIntentSnapshot,
 } from '@/features/auth/model/returnIntent';
 import { SessionCoordinator } from '@/features/auth/session/sessionCoordinator';
+import { syncPurchaseIdentity } from '@/features/billing/identity';
 
 import { codeFromCallbackUrl } from './oauth';
 import { unregisterThisDevice } from './push';
@@ -91,6 +92,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Keeps requests that do not thread an epoch of their own able to report
         // a 401 against the session they were actually issued under.
         setAmbientSessionEpoch(instance.getSessionEpoch());
+        // Who this device buys for follows the session, not a screen. Set when the
+        // paywall opens instead, the previous account's identity would survive until
+        // somebody happened to visit it — and a purchase in between is attached to the
+        // wrong account at the provider, permanently. Idempotent, so the state changes
+        // that are not identity changes cost nothing.
+        void syncPurchaseIdentity(visibleUser(nextState)?.id ?? null);
       },
       transitionIdentity: async (previousUserId) => {
         // Runs on every identity change, mounted screens or not, so the next

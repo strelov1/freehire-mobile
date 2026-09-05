@@ -105,6 +105,7 @@ export default function RootLayout() {
                       rides in as `?mode=`, so a reset deep link lands here too. */}
                   <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'modal' }} />
                   {/* Account screens */}
+                  <Stack.Screen name="account/plan" options={{ headerShown: false }} />
                   <Stack.Screen name="account/security" options={{ headerShown: false }} />
                   <Stack.Screen name="account/delete" options={{ headerShown: false }} />
                   {/* A multi-job digest's own matched-jobs list, pushed from the
