@@ -34,7 +34,6 @@
 
 - [x] 4.1 `npm run lint` and `npx tsc --noEmit` clean.
 - [x] 4.2 Unit tests pass: 526 across 56 suites.
-- [ ] 4.3 By eye on a device: the dark theme's new background and brand tones, and the tighter
-      corners, read as intended. Needs a simulator — not done in this session. The values are the
-      design system's by construction; what a screenshot would confirm is that nothing depended on
-      the old ones.
+- [x] 4.3 By eye on an iOS simulator, both themes: the design system's darker background and olive
+      brand read as intended, chips and buttons keep their contrast, and nothing depended on the
+      old values.

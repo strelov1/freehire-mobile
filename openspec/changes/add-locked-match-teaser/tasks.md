@@ -31,6 +31,7 @@
 
 - [x] 4.1 `npm run lint` and `npx tsc --noEmit` clean.
 - [x] 4.2 Unit tests pass: 490 across 54 suites.
-- [ ] 4.3 By hand: the same job's teaser figures do not change while scrolling the feed, and the
-      job screen and the card agree on them. Needs a device or simulator — not done in this
-      session; the determinism is covered by unit tests either way.
+- [x] 4.3 By hand on an iOS simulator: the ALTEN Spain job reads `74% · 14/19 skills` on its feed
+      card and 74% over `14 of 19 skills` on its own screen — the same figures on both surfaces and
+      across re-renders. The blur covers the chips and the strip only; a job with no dictionary
+      skills keeps the plain card, teaser-free.

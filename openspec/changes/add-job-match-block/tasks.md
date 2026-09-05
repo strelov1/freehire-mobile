@@ -61,6 +61,8 @@
 - [x] 6.1 `npm run lint` and `npx tsc --noEmit` clean (strict, `noUncheckedIndexedAccess`).
 - [x] 6.2 Unit tests pass: 451 across 52 suites, including the new state-machine, segment and
       block cases.
-- [ ] 6.3 Walk the states by hand against a real API base: signed out, signed in without skills,
-      signed in with skills, a job with no skills, and a job whose skills are enrichment-only.
-      Needs a device or simulator and a signed-in account — not done in this session.
+- [x] 6.3 Walked on an iOS simulator against the production API, signed out: the `guest` state
+      shows the teaser above a working "Sign in", and a job with no dictionary skills shows
+      "Not enough data to compare this job to your profile" with no figure and no request.
+- [ ] 6.4 The signed-in states — the real match's three groups, the blockers, `no-profile` — need
+      an account, which this session had no credentials for. Not verified on a device.
