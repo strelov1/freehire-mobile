@@ -94,6 +94,48 @@ export function cycleDraftSkill(draft: ProfileDraft, skill: string): ProfileDraf
   return { ...draft, excludedSkills: draft.excludedSkills.filter((s) => s !== skill) };
 }
 
+/**
+ * The three writes the match block's chips produce, each returning a whole
+ * profile ready for `saveProfile`.
+ *
+ * Each keeps the skill out of both lists at once. The server enforces the same
+ * rule (`subtractSkills`), but a client that sent a contradiction and then
+ * rendered its own request back would show the user a profile the server never
+ * stored.
+ *
+ * A `null` profile — a viewer with none — cannot reach these: the chips only
+ * exist in the real-match state, which requires a profile with skills.
+ */
+export function claimSkillInProfile(profile: UserProfile, skill: string): UserProfile {
+  return {
+    ...profile,
+    skills: profile.skills.includes(skill) ? profile.skills : [...profile.skills, skill],
+    excluded_skills: profile.excluded_skills.filter((s) => s !== skill),
+  };
+}
+
+export function avoidSkillInProfile(profile: UserProfile, skill: string): UserProfile {
+  return {
+    ...profile,
+    skills: profile.skills.filter((s) => s !== skill),
+    excluded_skills: profile.excluded_skills.includes(skill)
+      ? profile.excluded_skills
+      : [...profile.excluded_skills, skill],
+  };
+}
+
+/** Undoing an avoid, and undoing a claim, are the same shape: take one skill out
+ *  of one list and leave the other alone. Undo subtracts THAT skill rather than
+ *  restoring an earlier profile wholesale, which would roll back any write made
+ *  after it. */
+export function unavoidSkillInProfile(profile: UserProfile, skill: string): UserProfile {
+  return { ...profile, excluded_skills: profile.excluded_skills.filter((s) => s !== skill) };
+}
+
+export function unclaimSkillInProfile(profile: UserProfile, skill: string): UserProfile {
+  return { ...profile, skills: profile.skills.filter((s) => s !== skill) };
+}
+
 export function toggleSpecialization(draft: ProfileDraft, value: string): ProfileDraft {
   return draft.specializations.includes(value)
     ? { ...draft, specializations: draft.specializations.filter((s) => s !== value) }

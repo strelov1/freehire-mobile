@@ -11,7 +11,7 @@
  * - `partitionBlockers` / `blockerTone`, the advisory hard-constraint list.
  */
 
-import type { Blocker } from './types';
+import type { Blocker, JobMatch } from './types';
 
 export type ClientMatch = { total: number; matched: number; percent: number };
 
@@ -71,6 +71,37 @@ export function matchHasGroups(
   match: { total: number } | null | undefined,
 ): boolean {
   return state === 'ready' && !!match && match.total > 0;
+}
+
+/**
+ * The match as it reads once the viewer claims a skill they were missing, before
+ * the profile write settles. The skill joins the held group and leaves whichever
+ * group it came from; the counts and the coverage are recomputed with the
+ * server's own weighting — an exact match weighs 1, an adjacent one a half — so
+ * the optimistic figure cannot drift from what the server will answer.
+ *
+ * It is a strict under-estimate: the adjacency dictionary lives on the backend,
+ * so a claim that promotes some OTHER missing skill to adjacent is invisible
+ * here. The block refetches once the write lands, and that is where such a
+ * promotion shows up.
+ *
+ * A skill this job does not carry, or one already held, yields the match
+ * untouched.
+ */
+export function claimSkill<M extends JobMatch>(match: M, skill: string): M {
+  if (!match.missing.includes(skill) && !match.adjacent.some((a) => a.name === skill)) return match;
+
+  const exact_count = match.exact_count + 1;
+  const adjacent = match.adjacent.filter((a) => a.name !== skill);
+  return {
+    ...match,
+    exact_count,
+    adjacent_count: adjacent.length,
+    coverage_percent: Math.round(((exact_count + 0.5 * adjacent.length) / match.total) * 100),
+    matched: [...match.matched, skill],
+    adjacent,
+    missing: match.missing.filter((s) => s !== skill),
+  };
 }
 
 /** The locked-state teaser: plausible figures for a match nobody has computed,

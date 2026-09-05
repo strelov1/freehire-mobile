@@ -1,9 +1,13 @@
 import {
+  avoidSkillInProfile,
+  claimSkillInProfile,
   cycleDraftSkill,
   draftFromProfile,
   profileWrite,
   skillState,
   toggleSpecialization,
+  unavoidSkillInProfile,
+  unclaimSkillInProfile,
   validateProfileEdit,
   type ProfileDraft,
 } from './profileEdit';
@@ -128,5 +132,59 @@ describe('toggleSpecialization', () => {
     expect(added.specializations).toEqual(['software_engineering', 'data']);
 
     expect(toggleSpecialization(added, 'data').specializations).toEqual(['software_engineering']);
+  });
+});
+
+describe('the match block’s profile writes', () => {
+  const profile: UserProfile = {
+    ...savedProfile,
+    skills: ['react', 'typescript'],
+    excluded_skills: ['wordpress'],
+  };
+
+  it('claims a skill into the held set', () => {
+    expect(claimSkillInProfile(profile, 'graphql').skills).toEqual([
+      'react',
+      'typescript',
+      'graphql',
+    ]);
+  });
+
+  it('claiming a skill the profile avoids resolves the contradiction', () => {
+    // A skill is never in both lists — the server subtracts one from the other,
+    // and a client that sent both would render back a profile it never stored.
+    const after = claimSkillInProfile(profile, 'wordpress');
+
+    expect(after.skills).toContain('wordpress');
+    expect(after.excluded_skills).not.toContain('wordpress');
+  });
+
+  it('avoiding a skill takes it out of the held set', () => {
+    const after = avoidSkillInProfile(profile, 'react');
+
+    expect(after.skills).not.toContain('react');
+    expect(after.excluded_skills).toContain('react');
+  });
+
+  it('does not duplicate a skill already in the target list', () => {
+    expect(claimSkillInProfile(profile, 'react').skills).toEqual(['react', 'typescript']);
+    expect(avoidSkillInProfile(profile, 'wordpress').excluded_skills).toEqual(['wordpress']);
+  });
+
+  it('undoes one write without restoring an earlier profile wholesale', () => {
+    // Restoring a snapshot would roll back any write made after the one being
+    // undone.
+    const two = claimSkillInProfile(claimSkillInProfile(profile, 'bash'), 'powershell');
+    const undone = unclaimSkillInProfile(two, 'powershell');
+
+    expect(undone.skills).toContain('bash');
+    expect(undone.skills).not.toContain('powershell');
+  });
+
+  it('un-avoiding leaves the held set untouched', () => {
+    const after = unavoidSkillInProfile(profile, 'wordpress');
+
+    expect(after.excluded_skills).not.toContain('wordpress');
+    expect(after.skills).toEqual(['react', 'typescript']);
   });
 });

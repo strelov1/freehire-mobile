@@ -1,5 +1,6 @@
 import {
   blockerTone,
+  claimSkill,
   computeClientMatch,
   matchBarSegments,
   matchHasGroups,
@@ -148,6 +149,51 @@ describe('matchBarSegments', () => {
       exact: 0,
       adjacent: 0,
     });
+  });
+});
+
+describe('claimSkill', () => {
+  const match = {
+    total: 4,
+    exact_count: 1,
+    adjacent_count: 1,
+    coverage_percent: 38,
+    matched: ['react'],
+    adjacent: [{ name: 'aws', via: 'gcp' }],
+    missing: ['graphql', 'nodejs'],
+  };
+
+  it('moves a missing skill into the held group and raises the coverage at once', () => {
+    const after = claimSkill(match, 'graphql');
+
+    expect(after.matched).toContain('graphql');
+    expect(after.missing).not.toContain('graphql');
+    expect(after.exact_count).toBe(2);
+    // (2 + 0.5 × 1) / 4 = 62.5% → 63.
+    expect(after.coverage_percent).toBe(63);
+  });
+
+  it('stops half-weighting a claimed adjacent skill', () => {
+    const after = claimSkill(match, 'aws');
+
+    expect(after.matched).toContain('aws');
+    expect(after.adjacent).toHaveLength(0);
+    expect(after.adjacent_count).toBe(0);
+    expect(after.exact_count).toBe(2);
+    // The half weight the adjacency contributed becomes a whole one: 2/4 = 50%.
+    expect(after.coverage_percent).toBe(50);
+  });
+
+  it('uses the server’s weighting, so the optimistic figure cannot drift', () => {
+    const after = claimSkill(match, 'nodejs');
+    expect(after.coverage_percent).toBe(
+      Math.round(((after.exact_count + 0.5 * after.adjacent_count) / after.total) * 100),
+    );
+  });
+
+  it('leaves the match untouched for a skill the job does not carry or one already held', () => {
+    expect(claimSkill(match, 'rust')).toBe(match);
+    expect(claimSkill(match, 'react')).toBe(match);
   });
 });
 
