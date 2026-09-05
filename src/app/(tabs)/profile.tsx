@@ -15,33 +15,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppSymbol } from '@/components/AppSymbol';
 import { useAuth } from '@/lib/authStore';
 import { getColors, Radius, Space } from '@/constants/freehire';
-import { facetValueLabel, formatDate, profileLocationSummary } from '@/lib/format';
+import { formatDate } from '@/lib/format';
 import { planView } from '@/features/billing/model/planView';
 import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
 import { usePlan } from '@/lib/usePlan';
-import { useProfile } from '@/lib/useProfile';
 
 const PRIVACY_POLICY_URL = 'https://freehire.me/privacy';
 const TERMS_OF_SERVICE_URL = 'https://freehire.me/terms';
 
-/** One row of chips (specializations or skills), reusing the identity
- *  section's badge shape but without its `capitalize` transform: unlike the
- *  plain-word role/beta badges, these values (facet labels, raw skill
- *  tokens) already carry their intended casing — iOS's capitalize also
- *  lowercases the rest of each word, which would mangle a label like
- *  "DevOps" into "Devops". Renders nothing for an empty list. */
-function ChipRow({ c, values }: { c: ReturnType<typeof getColors>; values: string[] }) {
-  if (!values.length) return null;
-  return (
-    <View style={styles.chipRow}>
-      {values.map((v) => (
-        <View key={v} style={[styles.badge, { backgroundColor: c.brandMuted }]}>
-          <Text style={[styles.badgeText, styles.chipText, { color: c.brandStrong }]}>{v}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
 
 /**
  * The Profile tab: a signed-in user's identity, a read-only view of their
@@ -51,20 +32,24 @@ function ChipRow({ c, values }: { c: ReturnType<typeof getColors>; values: strin
 export default function ProfileScreen() {
   const c = getColors(useColorScheme());
   const { user, state, signOut, logoutAll, recordReturnIntent, retryBootstrap } = useAuth();
-  const { data: profile, isLoading: profileLoading, isError: profileError } = useProfile();
   const { data: plan, isError: planError } = usePlan();
   const [busy, setBusy] = useState<'signOut' | 'logoutAll' | null>(null);
 
   // The row states the plan or states that it could not be read — never a guess. Saying
   // "Free" over a failed request would be wrong in the one direction that matters: it invites
   // somebody who is already paying to buy the same plan again.
-  const planRowLabel = planError
-    ? 'Plan · unavailable'
-    : planView({ plan, canPurchase: false }).kind === 'pro'
-      ? 'freehire Pro'
-      : plan
-        ? 'Free plan'
-        : 'Plan';
+  const planState = planView({ plan, canPurchase: false, failed: planError });
+  const planCard =
+    planState.kind === 'pro'
+      ? {
+          title: 'freehire Pro',
+          detail: planState.proUntil ? `Active until ${formatDate(planState.proUntil.toISOString())}` : 'Active',
+        }
+      : planState.kind === 'free'
+        ? { title: 'Free plan', detail: 'Everything freehire does, with daily limits' }
+        : planState.kind === 'unavailable'
+          ? { title: 'Plan', detail: 'Unavailable right now' }
+          : { title: 'Plan', detail: 'Loading…' };
 
   // A guest opening this tab wants to sign in, so hand them the sheet rather
   // than a screen whose only content is a button that opens it. Once per
@@ -165,7 +150,6 @@ export default function ProfileScreen() {
   }
 
   const joined = formatDate(user.created_at);
-  const locationLines = profile ? profileLocationSummary(profile.location_preferences) : [];
 
   return (
     <SafeAreaView edges={['top']} style={[styles.fill, { backgroundColor: c.background }]}>
@@ -196,27 +180,23 @@ export default function ProfileScreen() {
           ) : null}
         </View>
 
+        {/* Plan. Information you tap into rather than an action on the session, so it sits
+            with the other readable sections and not among Sign out and Delete Account. */}
         <View style={styles.profileSection}>
-          <Text style={[styles.sectionTitle, { color: c.foreground }]}>Profile</Text>
-          {profileLoading ? (
-            <ActivityIndicator color={c.mutedForeground} />
-          ) : profileError ? (
-            <Text style={[styles.emptyText, { color: c.destructive }]}>{"Couldn't load your profile."}</Text>
-          ) : profile ? (
-            <View style={styles.profileBody}>
-              <ChipRow c={c} values={profile.specializations.map((s) => facetValueLabel('category', s))} />
-              <ChipRow c={c} values={profile.skills} />
-              {locationLines.map((line) => (
-                <Text key={line} style={[styles.locationLine, { color: c.mutedForeground }]}>
-                  {line}
-                </Text>
-              ))}
-            </View>
-          ) : (
-            <Text style={[styles.emptyText, { color: c.mutedForeground }]}>
-              No profile saved yet. Set one up at freehire.me/my/profile.
-            </Text>
-          )}
+          <Text style={[styles.sectionTitle, { color: c.foreground }]}>Plan</Text>
+          <View style={[styles.cardList, { borderColor: c.border, backgroundColor: c.card }]}>
+            <Pressable
+              onPress={() => router.push('/account/plan')}
+              style={({ pressed }) => [styles.legalRow, pressed && { backgroundColor: c.accent }]}
+              accessibilityRole="button"
+              accessibilityLabel="Plan">
+              <View style={styles.legalInfo}>
+                <Text style={[styles.legalTitle, { color: c.foreground }]}>{planCard.title}</Text>
+                <Text style={[styles.legalUrl, { color: c.mutedForeground }]}>{planCard.detail}</Text>
+              </View>
+              <AppSymbol name="chevron.right" size={16} tintColor={c.brandStrong} />
+            </Pressable>
+          </View>
         </View>
 
         {/* Legal & Policies Section */}
@@ -255,26 +235,11 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
         </View>
-      </ScrollView>
 
-      <View style={styles.footer}>
-        {/* The plan, and the only entry point to the purchase surface. Signed-out visitors get
-            no row at all: there is no plan without an account, and an empty one would read as
-            "free" rather than as "nobody is signed in". */}
-        {user && (
-          <Pressable
-            onPress={() => router.push('/account/plan')}
-            style={({ pressed }) => [
-              styles.actionButton,
-              { borderColor: c.border, backgroundColor: c.card },
-              pressed && { backgroundColor: c.accent },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Plan">
-            <Text style={[styles.actionButtonText, { color: c.foreground }]}>{planRowLabel}</Text>
-          </Pressable>
-        )}
-
+        {/* Inside the scroll, not pinned below it. A fixed block has to fit whatever is left
+            after the content, and when it does not the last thing in it — Delete Account —
+            simply disappears under the tab bar, silently and only on shorter screens. */}
+        <View style={styles.footer}>
         <Pressable
           onPress={() => router.push('/account/security')}
           style={({ pressed }) => [
@@ -327,7 +292,8 @@ export default function ProfileScreen() {
           accessibilityLabel="Delete Account">
           <Text style={[styles.deleteButtonText, { color: c.destructive }]}>Delete Account</Text>
         </Pressable>
-      </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -361,7 +327,10 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: Space.lg,
     paddingTop: Space.xl,
-    paddingBottom: Space.xl,
+    // The tab bar floats over the scroll, so the clearance belongs to the scrolling content:
+    // whatever ends up last has to be reachable, and what ends up last changes with the
+    // account's state.
+    paddingBottom: Space.xl + TAB_BAR_HEIGHT,
     gap: Space.xl,
   },
   identity: {
@@ -415,9 +384,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  // No longer pinned, so it carries no tab-bar clearance of its own — `body` owns that now.
   footer: {
-    paddingHorizontal: Space.lg,
-    paddingBottom: Space.lg + TAB_BAR_HEIGHT,
     gap: Space.sm,
   },
   actionButton: {

@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import type PurchasesType from 'react-native-purchases';
+import type { LOG_LEVEL as LogLevel } from 'react-native-purchases';
 
 /**
  * The two public platform keys, as `app.config.ts` resolved them into `extra`. Validated at
@@ -62,6 +63,21 @@ export function getPurchases(): typeof PurchasesType | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * How loud the SDK should be, resolved here so that the enum — a VALUE, not a type — is
+ * loaded through the same guarded require as everything else. Imported directly it would
+ * pull the native module into any file that mentions a log level, which is exactly what this
+ * module exists to prevent.
+ *
+ * WARN rather than the SDK's own default, which is verbose in a debug build: it narrates
+ * every cache check and every request, and our own logs end up a few hundred lines down.
+ */
+export function purchaseLogLevel(): LogLevel {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { LOG_LEVEL } = require('react-native-purchases') as typeof import('react-native-purchases');
+  return LOG_LEVEL.WARN;
 }
 
 export type { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';

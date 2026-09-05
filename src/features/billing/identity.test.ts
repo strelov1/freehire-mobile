@@ -3,11 +3,18 @@
 const mockLogIn = jest.fn(async () => {});
 const mockLogOut = jest.fn(async () => {});
 const mockConfigure = jest.fn();
+const mockSetLogLevel = jest.fn();
 
 jest.mock('./purchases', () => ({
   isPurchasingSupported: true,
   purchaseKey: 'appl_test',
-  getPurchases: () => ({ configure: mockConfigure, logIn: mockLogIn, logOut: mockLogOut }),
+  purchaseLogLevel: () => 'WARN',
+  getPurchases: () => ({
+    configure: mockConfigure,
+    setLogLevel: mockSetLogLevel,
+    logIn: mockLogIn,
+    logOut: mockLogOut,
+  }),
 }));
 
 /**

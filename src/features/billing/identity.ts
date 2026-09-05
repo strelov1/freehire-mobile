@@ -1,5 +1,5 @@
 import { identityAction } from './model/identity';
-import { getPurchases, isPurchasingSupported, purchaseKey } from './purchases';
+import { getPurchases, isPurchasingSupported, purchaseKey, purchaseLogLevel } from './purchases';
 
 /**
  * Who the purchases SDK currently believes it is serving, as a `users.id` string.
@@ -40,6 +40,11 @@ export async function syncPurchaseIdentity(userId: number | null): Promise<void>
     // module is loaded by anything that touches billing, and configuring a payments SDK is a
     // side effect an import should not have.
     if (!configured) {
+      // Said explicitly, because the SDK's own default is verbose in a debug build — it
+      // announces every cache check and every request, which buries our own logs a few
+      // hundred lines deep. Warnings and errors are what a reader of these logs is looking
+      // for; the rest is the SDK narrating itself.
+      purchases.setLogLevel(purchaseLogLevel());
       purchases.configure({ apiKey: purchaseKey });
       configured = true;
     }
