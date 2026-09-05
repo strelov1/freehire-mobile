@@ -1,4 +1,4 @@
-import { identityAction } from './model/identity';
+import { identityAction } from './model/identityAction';
 import { getPurchases, isPurchasingSupported, purchaseKey, purchaseLogLevel } from './purchases';
 
 /**

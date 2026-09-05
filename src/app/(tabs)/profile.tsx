@@ -17,11 +17,10 @@ import { useAuth } from '@/lib/authStore';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { formatDate } from '@/lib/format';
 import { planHeadline, planView } from '@/features/billing/model/planView';
+import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '@/features/billing/storeLinks';
 import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
 import { usePlan } from '@/lib/usePlan';
 
-const PRIVACY_POLICY_URL = 'https://freehire.me/privacy';
-const TERMS_OF_SERVICE_URL = 'https://freehire.me/terms';
 
 
 /**
@@ -176,12 +175,12 @@ export default function ProfileScreen() {
           <View style={[styles.cardList, { borderColor: c.border, backgroundColor: c.card }]}>
             <Pressable
               onPress={() => router.push('/account/plan')}
-              style={({ pressed }) => [styles.legalRow, pressed && { backgroundColor: c.accent }]}
+              style={({ pressed }) => [styles.settingRow, pressed && { backgroundColor: c.accent }]}
               accessibilityRole="button"
               accessibilityLabel="Plan">
-              <View style={styles.legalInfo}>
-                <Text style={[styles.legalTitle, { color: c.foreground }]}>{planCard.title}</Text>
-                <Text style={[styles.legalUrl, { color: c.mutedForeground }]}>{planCard.detail}</Text>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingTitle, { color: c.foreground }]}>{planCard.title}</Text>
+                <Text style={[styles.settingDetail, { color: c.mutedForeground }]}>{planCard.detail}</Text>
               </View>
               <AppSymbol name="chevron.right" size={16} tintColor={c.brandStrong} />
             </Pressable>
@@ -403,6 +402,19 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     overflow: 'hidden',
   },
+  // The plan row wears the same shape as the legal rows without borrowing their names: a plan
+  // title is not a legal title, and a plan's expiry is not a URL.
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Space.md,
+    paddingVertical: Space.md,
+    gap: Space.md,
+  },
+  settingInfo: { flex: 1, gap: 2 },
+  settingTitle: { fontSize: 15, fontWeight: '600' },
+  settingDetail: { fontSize: 13 },
   legalRow: {
     flexDirection: 'row',
     alignItems: 'center',

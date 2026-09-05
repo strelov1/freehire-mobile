@@ -22,3 +22,11 @@ export function storeSubscriptionsURL(): string {
 
 /** Where a plan bought on the web is managed — the account page, not a checkout. */
 export const WEB_PLAN_URL = 'https://freehire.me/my/plan';
+
+/**
+ * The two pages Apple expects beside anything that sells, and that the profile screen links to
+ * as well. One definition: they were declared twice, in the same change that moved the store
+ * URLs here for exactly that reason.
+ */
+export const PRIVACY_POLICY_URL = 'https://freehire.me/privacy';
+export const TERMS_OF_SERVICE_URL = 'https://freehire.me/terms';

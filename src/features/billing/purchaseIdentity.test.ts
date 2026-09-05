@@ -28,7 +28,7 @@ jest.mock('./purchases', () => ({
 function loadIdentity() {
   jest.resetModules();
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return require('./identity') as typeof import('./identity');
+  return require('./purchaseIdentity') as typeof import('./purchaseIdentity');
 }
 
 beforeEach(() => {

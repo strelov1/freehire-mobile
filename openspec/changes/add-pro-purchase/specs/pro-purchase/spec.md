@@ -39,8 +39,14 @@ purchase through the store.
 
 #### Scenario: A purchase requires an account
 
-- **WHEN** a signed-out visitor taps the purchase button
-- **THEN** the app opens the sign-in sheet and starts no purchase
+- **WHEN** a signed-out visitor reaches the purchase surface
+- **THEN** no packages and no purchase button are shown, and the only thing offered is signing
+  in
+
+This was first written as "taps the purchase button, and the app opens the sign-in sheet". A
+button that exists only to refuse is worse: it advertises a price to somebody who cannot be
+sold to, and a tap that opens a sheet instead of a purchase is a small deceit. Nothing about
+the plan is shown to a signed-out visitor either — a plan belongs to an account.
 
 #### Scenario: Offerings that will not load do not break the screen
 
@@ -67,6 +73,16 @@ front of a paywall.
 - **WHEN** the purchase completed but the plan still reports free after the bounded retries
 - **THEN** the app states that the payment was taken and access is on its way, and does not
   present the purchase again
+
+#### Scenario: A restore the server has not caught up with is not "nothing to restore"
+
+- **WHEN** the store hands back an active entitlement but the plan does not yet report Pro
+- **THEN** the app says the same thing it says after a pending purchase, and never that there
+  was nothing to restore
+
+Telling somebody who is paying that they own nothing is the worst answer available, and it is
+the exact case the sync route exists to serve. "Nothing to restore" is reserved for a store
+that handed back nothing at all.
 
 #### Scenario: A cancelled purchase is not an error
 

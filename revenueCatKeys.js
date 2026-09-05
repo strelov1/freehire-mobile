@@ -66,4 +66,4 @@ function normalizeOne(value, prefix, name, required) {
   return candidate;
 }
 
-module.exports = { normalizeRevenueCatKeys, IOS_KEY_PREFIX, ANDROID_KEY_PREFIX };
+module.exports = { normalizeRevenueCatKeys };

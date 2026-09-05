@@ -42,6 +42,17 @@ type PackageLike = {
 /** Monthly first: it is the lower commitment, and the annual option reads as the upsell. */
 const PERIOD_ORDER: Record<PurchasePeriod, number> = { monthly: 0, annual: 1, other: 2 };
 
+/**
+ * What a period is called on screen. Beside the order rather than in the screen, because both
+ * are facts about the period and a screen switching on the same type is the second place to
+ * keep in step.
+ */
+const PERIOD_LABEL: Record<PurchasePeriod, string> = { monthly: 'Monthly', annual: 'Yearly', other: 'Pro' };
+
+export function periodLabel(period: PurchasePeriod): string {
+  return PERIOD_LABEL[period];
+}
+
 const MONTHS_IN_YEAR = 12;
 
 export function purchaseOptions(offering: OfferingLike): PurchaseOption[] {

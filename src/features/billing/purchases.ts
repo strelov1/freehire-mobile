@@ -79,5 +79,3 @@ export function purchaseLogLevel(): LogLevel {
   const { LOG_LEVEL } = require('react-native-purchases') as typeof import('react-native-purchases');
   return LOG_LEVEL.WARN;
 }
-
-export type { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';

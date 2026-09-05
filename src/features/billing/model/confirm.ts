@@ -1,5 +1,5 @@
 import type { Plan, StoreSyncStatus } from '../api/planApi';
-import { planView } from './planView';
+import { isProLive } from './planView';
 
 /**
  * Turning a completed store purchase into a plan the server agrees with.
@@ -46,8 +46,10 @@ export async function confirmPurchase({ sync, readPlan, wait }: ConfirmDeps): Pr
     }
 
     try {
-      const plan = await readPlan();
-      if (planView({ plan, canPurchase: false }).kind === 'pro') return 'confirmed';
+      // The predicate, not the view. Whether somebody is Pro is a fact about the plan;
+      // asking a presentation model meant that confirming a purchase had to invent a
+      // `canPurchase` it did not care about.
+      if (isProLive(await readPlan())) return 'confirmed';
     } catch {
       // Offline, or a server that answered badly. Same treatment as a free answer: try again.
     }

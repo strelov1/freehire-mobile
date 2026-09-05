@@ -15,15 +15,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppSymbol } from '@/components/AppSymbol';
 import { Radius, Space, getColors } from '@/constants/freehire';
 import { allowanceRows } from '@/features/billing/model/allowances';
+import { periodLabel } from '@/features/billing/model/offering';
 import { planHeadline, planView } from '@/features/billing/model/planView';
 import { isPurchasingSupported } from '@/features/billing/purchases';
-import { WEB_PLAN_URL, storeSubscriptionsURL } from '@/features/billing/storeLinks';
+import {
+  PRIVACY_POLICY_URL,
+  TERMS_OF_SERVICE_URL,
+  WEB_PLAN_URL,
+  storeSubscriptionsURL,
+} from '@/features/billing/storeLinks';
 import { usePurchase, type PurchaseOutcome } from '@/features/billing/usePurchase';
 import { useAuth } from '@/lib/authStore';
 import { usePlan, useRefreshPlan } from '@/lib/usePlan';
 
-const PRIVACY_POLICY_URL = 'https://freehire.me/privacy';
-const TERMS_OF_SERVICE_URL = 'https://freehire.me/terms';
 
 async function openExternally(url: string) {
   try {
@@ -53,6 +57,9 @@ export default function PlanScreen() {
 
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Money has been taken and the server has not caught up. The purchase stays hidden until it
+  // does: showing the packages again under "payment received" is how one person pays twice.
+  const [paymentPending, setPaymentPending] = useState(false);
 
   const view = planView({
     plan,
@@ -75,6 +82,7 @@ export default function PlanScreen() {
         case 'pending':
           // Money has been taken. Saying so plainly beats a spinner, and beats offering the
           // purchase again — which is how somebody pays twice.
+          setPaymentPending(true);
           await refreshPlan();
           setNotice('Payment received. Your plan will be active in a moment.');
           return;
@@ -130,7 +138,7 @@ export default function PlanScreen() {
         )}
 
 
-        {view.offersPurchase && (
+        {view.offersPurchase && !paymentPending && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: c.foreground }]}>Upgrade</Text>
 
@@ -152,7 +160,7 @@ export default function PlanScreen() {
                   accessibilityRole="button">
                   <View style={styles.optionText}>
                     <Text style={[styles.optionPeriod, { color: c.foreground }]}>
-                      {option.period === 'annual' ? 'Yearly' : option.period === 'monthly' ? 'Monthly' : 'Pro'}
+                      {periodLabel(option.period)}
                     </Text>
                     {option.savingPercent !== undefined && (
                       <Text style={[styles.optionSaving, { color: c.brandStrong }]}>

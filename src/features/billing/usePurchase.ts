@@ -4,28 +4,20 @@ import { useCallback, useState } from 'react';
 import { getPlan, syncStorePurchase } from './api/planApi';
 import { confirmPurchase } from './model/confirm';
 import { purchaseOptions } from './model/offering';
+import { buyPackage, restorePurchases, type PurchaseOutcome, type StoreLike } from './model/purchaseFlow';
 import { getPurchases, isPurchasingSupported } from './purchases';
 import { useAuth } from '@/lib/authStore';
 
 /**
- * The paywall's dealings with the store: what is on sale, buying it, and restoring what was
- * already bought.
+ * The paywall's dealings with the store.
  *
- * The rules it leans on live in `model/` and are tested there. What is here is the part that
- * genuinely needs the SDK, kept as thin as it can be — a screen should not be the only place
- * a retry policy exists.
+ * Thin on purpose: what is on sale is a cached read, what buying and restoring DECIDE lives in
+ * `model/purchaseFlow`, and the retry policy lives in `model/confirm`. What is left here is the
+ * React — a busy flag and a query — because a screen should not be the only place a rule
+ * exists, and a rule inside a hook is one this project cannot test.
  */
 
-export type PurchaseOutcome =
-  /** The server agrees: the account is Pro. */
-  | { kind: 'confirmed' }
-  /** Paid, and the server has not caught up yet. The reconciler finishes it. */
-  | { kind: 'pending' }
-  /** The buyer backed out of the store's own sheet. Not an error, and not shown as one. */
-  | { kind: 'cancelled' }
-  /** Nothing to restore for this account. */
-  | { kind: 'nothing_to_restore' }
-  | { kind: 'failed'; message: string };
+export type { PurchaseOutcome } from './model/purchaseFlow';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -33,12 +25,17 @@ const confirmAgainstServer = () =>
   confirmPurchase({ sync: syncStorePurchase, readPlan: () => getPlan(), wait: sleep });
 
 /**
- * The offering is remote configuration and is the same for everybody, so it is cached like
- * any other read rather than fetched into component state. Not under `privateKeys`: nothing
- * about it belongs to the signed-in account, and clearing it on a session change would refetch
- * for no reason.
+ * The offering is remote configuration and is the same for everybody, so it is cached like any
+ * other read rather than fetched into component state. Not under `privateKeys`: nothing about
+ * it belongs to the signed-in account, and clearing it on a session change would refetch for
+ * no reason.
  */
 const offeringsKey = ['billing', 'offerings'] as const;
+
+const UNAVAILABLE: PurchaseOutcome = {
+  kind: 'failed',
+  message: 'Purchases are not available in this build.',
+};
 
 export function usePurchase() {
   const { user } = useAuth();
@@ -60,8 +57,8 @@ export function usePurchase() {
     // than a nicety. The SDK is configured lazily on the first identity change, so nobody
     // signed in means nobody has configured it — and asking an unconfigured SDK for offerings
     // fails for a reason that has nothing to do with the offering, then sits in this cache for
-    // the whole staleTime. There is also nothing to sell to somebody who cannot buy: a
-    // purchase has to attach to an account.
+    // the whole staleTime. There is also nothing to sell to somebody who cannot buy: a purchase
+    // has to attach to an account.
     //
     // An offering that will not load costs the purchase button and nothing else — the plan
     // state comes from the server and renders regardless, and the screen offers a retry.
@@ -73,71 +70,25 @@ export function usePurchase() {
     await refetch();
   }, [refetch]);
 
-  const buy = useCallback(async (optionId: string): Promise<PurchaseOutcome> => {
+  /** Runs one store flow with the busy flag held, or reports that this build cannot sell. */
+  const run = useCallback(async (flow: (store: StoreLike) => Promise<PurchaseOutcome>) => {
     const purchases = getPurchases();
-    if (!purchases) return { kind: 'failed', message: 'Purchases are not available in this build.' };
+    if (!purchases) return UNAVAILABLE;
 
     setBusy(true);
     try {
-      const offerings = await purchases.getOfferings();
-      const target = offerings.current?.availablePackages.find((p) => p.identifier === optionId);
-      if (!target) return { kind: 'failed', message: 'That plan is no longer offered.' };
-
-      await purchases.purchasePackage(target);
-      return { kind: await confirmAgainstServer() };
-    } catch (error) {
-      // The SDK reports a user backing out of the store sheet as an error carrying this flag.
-      // It is the most common outcome of opening a paywall and must not be shown as a failure.
-      if (isUserCancellation(error)) return { kind: 'cancelled' };
-      return { kind: 'failed', message: purchaseErrorMessage(error) };
+      return await flow(purchases as unknown as StoreLike);
     } finally {
       setBusy(false);
     }
   }, []);
 
-  /**
-   * Restoring is required by Apple of anything selling a subscription, and it is also the
-   * recovery path for a reinstall, a new device, or a purchase whose webhook was lost.
-   */
-  const restore = useCallback(async (): Promise<PurchaseOutcome> => {
-    const purchases = getPurchases();
-    if (!purchases) return { kind: 'failed', message: 'Purchases are not available in this build.' };
+  const buy = useCallback(
+    (optionId: string) => run((store) => buyPackage(store, optionId, confirmAgainstServer)),
+    [run],
+  );
 
-    setBusy(true);
-    try {
-      await purchases.restorePurchases();
-      // Confirmed the same way a new purchase is: the store's answer is not the plan, the
-      // server's is.
-      const outcome = await confirmAgainstServer();
-      return outcome === 'confirmed' ? { kind: 'confirmed' } : { kind: 'nothing_to_restore' };
-    } catch (error) {
-      if (isUserCancellation(error)) return { kind: 'cancelled' };
-      return { kind: 'failed', message: purchaseErrorMessage(error) };
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+  const restore = useCallback(() => run((store) => restorePurchases(store, confirmAgainstServer)), [run]);
 
   return { options, loadingOptions, busy, reloadOptions, buy, restore };
-}
-
-function isUserCancellation(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'userCancelled' in error
-    ? Boolean((error as { userCancelled?: unknown }).userCancelled)
-    : false;
-}
-
-/**
- * The store's own words where there are any.
- *
- * A message written here would have to guess at what went wrong — a declined card, an
- * unavailable product, a parental restriction — and the store already knows and says so in
- * the buyer's language.
- */
-function purchaseErrorMessage(error: unknown): string {
-  if (typeof error === 'object' && error !== null) {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === 'string' && message.trim()) return message;
-  }
-  return 'The purchase could not be completed.';
 }

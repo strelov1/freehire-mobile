@@ -13,7 +13,7 @@ import {
   type ReturnIntentSnapshot,
 } from '@/features/auth/model/returnIntent';
 import { SessionCoordinator } from '@/features/auth/session/sessionCoordinator';
-import { syncPurchaseIdentity } from '@/features/billing/identity';
+import { syncPurchaseIdentity } from '@/features/billing/purchaseIdentity';
 
 import { codeFromCallbackUrl } from './oauth';
 import { unregisterThisDevice } from './push';

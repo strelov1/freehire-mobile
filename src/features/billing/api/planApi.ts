@@ -16,14 +16,6 @@ import { request } from '@/lib/transport';
 export type ProSource = 'stripe' | 'revenuecat' | 'granted' | (string & {});
 
 /**
- * The caller's plan, as `GET /api/v1/me/plan` answers it.
- *
- * `pro_until` and `pro_source` are absent together: on the free plan, and on one that has
- * ended. The allowances are per-feature daily budgets for the web's metered AI features; this
- * app calls none of them, so it reads the plan and ignores the rest rather than reporting a
- * budget it cannot spend.
- */
-/**
  * One metered feature's standing today.
  *
  * `enforced` is the field that is easy to miss and expensive to ignore: while it is false the

@@ -1,4 +1,4 @@
-import { identityAction } from './identity';
+import { identityAction } from './identityAction';
 
 describe('identityAction', () => {
   it('identifies the buyer when somebody signs in', () => {

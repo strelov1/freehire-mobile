@@ -79,18 +79,46 @@ export function planView({ plan, canPurchase, signedIn = true, failed }: PlanVie
     };
   }
 
-  const proUntil = liveUntil(plan.pro_until);
-  if (!proUntil) {
+  if (!isProLive(plan)) {
     return { kind: 'free', offersPurchase: canPurchase, offersRestore: canPurchase, manageAt: 'nowhere' };
   }
 
   return {
     kind: 'pro',
-    proUntil,
+    // Absent when the server named a tier it could not date. The plan still stands; only
+    // "until when" is unknown, and the screen says so rather than inventing a day.
+    proUntil: liveUntil(plan.pro_until),
     offersPurchase: false,
     offersRestore: canPurchase,
     manageAt: manageAtFor(plan.pro_source),
   };
+}
+
+/**
+ * Whether the server says this account is on Pro right now.
+ *
+ * TWO SOURCES, and the second is not belt-and-braces. `pro_until` is the usual answer and the
+ * only one that carries a date. But the server names the tier separately, and it can answer
+ * `plan: "pro"` with no expiry — its plan surface reads the tier and the dates through
+ * different queries, and the second can fail on its own. Reading only the date turns that into
+ * "free", and a free-looking Pro subscriber is offered the purchase they already own.
+ *
+ * So a tier of "pro" confers even with no readable date. The direction matters: being wrong
+ * here costs a subscriber a plan they paid for, or charges them for it twice.
+ */
+export function isProLive(plan: Plan | undefined): boolean {
+  if (!plan) return false;
+
+  // A READABLE date wins, in both directions. It is the authoritative answer and the only one
+  // that can lapse: a response held in cache across the instant it expired still says
+  // `plan: "pro"`, and trusting the tier there would leave somebody unable to buy again
+  // because the app insists they already have it.
+  const parsed = plan.pro_until ? new Date(plan.pro_until) : undefined;
+  if (parsed && !Number.isNaN(parsed.getTime())) return parsed.getTime() > Date.now();
+
+  // No date, or one that will not parse. Now the tier is all there is, and it is believed:
+  // reading it as free would offer the purchase to somebody already paying.
+  return plan.plan === 'pro';
 }
 
 /** What a surface calls the plan, and what it says underneath. */

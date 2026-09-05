@@ -1,4 +1,4 @@
-import { planHeadline, planView } from './planView';
+import { isProLive, planHeadline, planView } from './planView';
 import type { Plan } from '../api/planApi';
 
 const future = '2099-01-01T00:00:00Z';
@@ -55,9 +55,13 @@ describe('planView', () => {
     expect(view.offersPurchase).toBe(true);
   });
 
-  it('reads a pro plan carrying no expiry as free', () => {
+  // Was "reads a pro plan carrying no expiry as free", which enshrined a double-sell: the
+  // server can name the tier without a date when its two queries disagree, and the free branch
+  // offers the purchase.
+  it('reads a pro plan carrying no expiry as pro, not as free', () => {
     const view = planView({ plan: { plan: 'pro', resets_at: future }, canPurchase: true });
-    expect(view.kind).toBe('free');
+    expect(view.kind).toBe('pro');
+    expect(view.offersPurchase).toBe(false);
   });
 
   // A build with no keys, or the web build. There is a plan to show and no way to sell one.
@@ -117,9 +121,12 @@ describe('planView', () => {
     );
   });
 
-  it('ignores an expiry it cannot read', () => {
-    const view = planView({ plan: plan({ pro_until: 'whenever' }), canPurchase: true });
-    expect(view.kind).toBe('free');
+  // An unreadable date falls back to the tier rather than to "free", for the same reason.
+  it('falls back to the tier when the expiry cannot be read', () => {
+    expect(planView({ plan: plan({ pro_until: 'whenever' }), canPurchase: true }).kind).toBe('pro');
+    expect(
+      planView({ plan: { plan: 'free', resets_at: future, pro_until: 'whenever' }, canPurchase: true }).kind,
+    ).toBe('free');
   });
 });
 
@@ -154,5 +161,51 @@ describe('planHeadline', () => {
     const view = planView({ plan: { plan: 'free', resets_at: future }, canPurchase: true });
     const other = planView({ plan: { plan: 'free', resets_at: future }, canPurchase: false });
     expect(planHeadline(view)).toEqual(planHeadline(other));
+  });
+});
+
+describe('isProLive', () => {
+  // The server names the tier and the dates through different queries, and the second can fail
+  // on its own — answering `plan: "pro"` with no expiry. Reading only the date turns a paying
+  // subscriber into a free one, and a free-looking subscriber is sold the plan they own.
+  it('believes the tier when there is no readable date', () => {
+    expect(isProLive({ plan: 'pro', resets_at: future })).toBe(true);
+    expect(isProLive({ plan: 'pro', resets_at: future, pro_until: 'whenever' })).toBe(true);
+  });
+
+  // The other direction, and the reason the date outranks the tier: a response held in cache
+  // across the instant it expired still says "pro". Believing that would leave somebody unable
+  // to buy again, because the app insists they already have it.
+  it('lets a readable date overrule the tier, in both directions', () => {
+    expect(isProLive({ plan: 'pro', resets_at: future, pro_until: past })).toBe(false);
+    expect(isProLive({ plan: 'free', resets_at: future, pro_until: future })).toBe(true);
+  });
+
+  it('believes a live date whatever the tier says', () => {
+    expect(isProLive({ plan: 'free', resets_at: future, pro_until: future })).toBe(true);
+  });
+
+  it('is false for a free plan and for no plan at all', () => {
+    expect(isProLive({ plan: 'free', resets_at: future })).toBe(false);
+    expect(isProLive({ plan: 'free', resets_at: future, pro_until: past })).toBe(false);
+    expect(isProLive(undefined)).toBe(false);
+  });
+});
+
+describe('planView on a dateless pro plan', () => {
+  const dateless = { plan: 'pro', resets_at: future, pro_source: 'stripe' } as const;
+
+  // The double-sell this exists to prevent: before, a plan the server called "pro" but could
+  // not date read as free, and the free branch offers the purchase.
+  it('does not offer a purchase', () => {
+    const view = planView({ plan: dateless, canPurchase: true });
+    expect(view.kind).toBe('pro');
+    expect(view.offersPurchase).toBe(false);
+    expect(view.manageAt).toBe('web');
+  });
+
+  it('says nothing about when it runs out, rather than inventing a day', () => {
+    expect(planView({ plan: dateless, canPurchase: true }).proUntil).toBeUndefined();
+    expect(planHeadline(planView({ plan: dateless, canPurchase: true })).detail).toBe('Active');
   });
 });
