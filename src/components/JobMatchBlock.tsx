@@ -64,10 +64,8 @@ function SkillGroup({
  * renders without a network or a query client.
  *
  * Five states, exactly one of which shows a match. The locked ones — `guest` and
- * `no-profile` — carry a line rather than the web's blurred teaser; that teaser
- * is its own change. `no-profile` deliberately has no button yet: the screen it
- * would open does not exist, and a button leading nowhere is worse than a
- * sentence.
+ * `no-profile` — carry a line and a way out rather than the web's blurred
+ * teaser; that teaser is its own change.
  */
 export function JobMatchBlock({
   state,
@@ -125,9 +123,21 @@ export function JobMatchBlock({
     return (
       <View style={card}>
         {heading}
-        <Text style={[styles.line, { color: c.mutedForeground }]}>
-          Add skills to your profile to see how this job matches them.
-        </Text>
+        <View style={styles.ctaRow}>
+          <Text style={[styles.line, styles.ctaText, { color: c.mutedForeground }]}>
+            Add skills to your profile to see how this job matches them.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/account/profile')}
+            style={({ pressed }) => [
+              styles.cta,
+              { backgroundColor: c.brand },
+              pressed && { opacity: 0.85 },
+            ]}>
+            <Text style={[styles.ctaLabel, { color: c.brandForeground }]}>Add skills</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }

@@ -103,14 +103,15 @@ describe('JobMatchBlock', () => {
       expect(text).toContain('Sign in');
     });
 
-    it('tells a viewer with no profile skills what produces a match, without a button', () => {
+    it('offers a viewer with no profile skills the editor that would produce one', () => {
       const renderer = render('no-profile');
       const text = renderedText(renderer).join(' ');
 
-      // The screen this would open does not exist yet, and a button leading
-      // nowhere is worse than a sentence.
       expect(text).toContain('Add skills to your profile');
-      expect(renderer.root.findAll((n) => n.props?.accessibilityRole === 'button')).toHaveLength(0);
+      expect(text).toContain('Add skills');
+      expect(
+        renderer.root.findAll((n) => n.props?.accessibilityRole === 'button').length,
+      ).toBeGreaterThan(0);
     });
 
     it('reports a failed match quietly, with no figure', () => {

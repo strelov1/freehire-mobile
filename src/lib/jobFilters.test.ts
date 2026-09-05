@@ -110,7 +110,15 @@ function mkProfile(
   location: LocationPreferences | null = null,
   excludedSkills: string[] = [],
 ): UserProfile {
-  return { specializations, skills, excluded_skills: excludedSkills, location_preferences: location };
+  return {
+    specializations,
+    skills,
+    // Not read by filtersFromProfile — carried because the type now covers every
+    // writable field, the profile editor having to send back what it didn't edit.
+    seniorities: [],
+    excluded_skills: excludedSkills,
+    location_preferences: location,
+  };
 }
 
 describe('filtersFromProfile', () => {

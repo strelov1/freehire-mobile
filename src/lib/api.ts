@@ -33,6 +33,29 @@ export async function getProfile(signal?: AbortSignal): Promise<UserProfile | nu
   return data;
 }
 
+/** Create-or-replace the signed-in user's profile.
+ *
+ *  The endpoint replaces the whole row, so this takes a whole profile: a caller
+ *  that sends only the fields it edited deletes the rest. `profileWrite` in
+ *  `lib/profileEdit.ts` is what builds one from an edit plus the profile it was
+ *  read from.
+ *
+ *  The server normalises what it stores (lowercases and de-duplicates skills,
+ *  subtracts the avoided set from the held one) and answers with the result, so
+ *  the response is the profile — not an echo of the request. */
+export async function saveProfile(
+  profile: UserProfile,
+  signal?: AbortSignal,
+): Promise<UserProfile> {
+  const { data } = await request<{ data: UserProfile }>('/api/v1/me/profile', {
+    method: 'PUT',
+    authMode: 'required',
+    body: profile,
+    signal,
+  });
+  return data;
+}
+
 // --- Saved jobs (session-scoped) --------------------------------------------
 
 export async function saveJob(slug: string, sessionEpoch: number, signal?: AbortSignal): Promise<UserJob> {

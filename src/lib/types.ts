@@ -89,13 +89,22 @@ export type LocationPreferences = {
   relocation: { open: boolean; regions?: string[]; countries?: string[] };
 };
 
-/** The signed-in user's saved profile, as returned by `GET /api/v1/me/profile`
- *  (null when they haven't saved one). A deliberate subset of the server's full
- *  model — mobile has no profile-editing screen, so it only reads the fields
- *  `filtersFromProfile` seeds the job filters from. */
+/**
+ * The signed-in user's saved profile, as returned by `GET /api/v1/me/profile`
+ * (null when they haven't saved one).
+ *
+ * Every WRITABLE field the server holds is here, and that is deliberate:
+ * `PUT /me/profile` replaces the whole row, so a type carrying a subset of it
+ * would build a write that silently drops whatever it left out — `seniorities`,
+ * the desired levels a user may have set on the web, above all. The read-only
+ * extras the response also carries (`cv`, `derived_location`, timestamps) are
+ * omitted, since no write can drop what no write can set.
+ */
 export type UserProfile = {
   specializations: string[];
   skills: string[];
+  /** Desired levels. Not edited by the mobile editor — only preserved by it. */
+  seniorities: string[];
   excluded_skills: string[];
   location_preferences: LocationPreferences | null;
 };
