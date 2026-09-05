@@ -15,23 +15,26 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppSymbol } from '@/components/AppSymbol';
 import { useAuth } from '@/lib/authStore';
 import { getColors, Radius, Space } from '@/constants/freehire';
-import { formatDate } from '@/lib/format';
+import { facetValueLabel, formatDate } from '@/lib/format';
 import { planHeadline, planView } from '@/features/billing/model/planView';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '@/features/billing/storeLinks';
 import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
 import { usePlan } from '@/lib/usePlan';
+import { useProfile } from '@/lib/useProfile';
 
 
 
 /**
- * The Profile tab: a signed-in user's identity, a read-only view of their
- * saved profile (specializations, skills, location), account deletion, and sign-out buttons.
- * Signed out, it shows an inline "Sign in" prompt instead of redirecting.
+ * The Profile tab: a signed-in user's identity, their saved profile
+ * (specializations and skills, with a way into the editor), the plan, account
+ * deletion, and sign-out buttons. Signed out, it shows an inline "Sign in"
+ * prompt instead of redirecting.
  */
 export default function ProfileScreen() {
   const c = getColors(useColorScheme());
   const { user, state, signOut, logoutAll, recordReturnIntent, retryBootstrap } = useAuth();
   const { data: plan, isError: planError } = usePlan();
+  const { data: profile, isPending: profilePending } = useProfile();
   const [busy, setBusy] = useState<'signOut' | 'logoutAll' | null>(null);
 
   // The row states the plan or states that it could not be read — never a guess. Saying
@@ -165,6 +168,55 @@ export default function ProfileScreen() {
           </View>
           {joined ? (
             <Text style={[styles.joined, { color: c.mutedForeground }]}>Joined {joined}</Text>
+          ) : null}
+        </View>
+
+        {/* The saved profile: what the match on every job is computed against,
+            and the one thing here the user can change. */}
+        <View style={styles.profileSection}>
+          <Text style={[styles.sectionTitle, { color: c.foreground }]}>Your profile</Text>
+          <View style={[styles.cardList, { borderColor: c.border, backgroundColor: c.card }]}>
+            <Pressable
+              onPress={() => router.push('/account/profile')}
+              style={({ pressed }) => [styles.settingRow, pressed && { backgroundColor: c.accent }]}
+              accessibilityRole="button"
+              accessibilityLabel={profile ? 'Edit your profile' : 'Set up your profile'}>
+              <View style={styles.settingInfo}>
+                <Text style={[styles.settingTitle, { color: c.foreground }]}>
+                  {profile ? 'Edit specializations and skills' : 'Set up your profile'}
+                </Text>
+                <Text style={[styles.settingDetail, { color: c.mutedForeground }]}>
+                  {profilePending
+                    ? 'Loading…'
+                    : profile
+                      ? `${profile.specializations.length} specializations · ${profile.skills.length} skills`
+                      : 'Add skills to see how each job matches you'}
+                </Text>
+              </View>
+              <AppSymbol name="chevron.right" size={16} tintColor={c.brandStrong} />
+            </Pressable>
+          </View>
+          {profile ? (
+            <View style={styles.profileBody}>
+              <View style={styles.chipRow}>
+                {profile.specializations.map((value) => (
+                  <View key={value} style={[styles.badge, { backgroundColor: c.brandMuted }]}>
+                    <Text style={[styles.badgeText, styles.chipText, { color: c.brandStrong }]}>
+                      {facetValueLabel('category', value)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              <View style={styles.chipRow}>
+                {profile.skills.map((skill) => (
+                  <View key={skill} style={[styles.badge, { backgroundColor: c.muted }]}>
+                    <Text style={[styles.badgeText, styles.chipText, { color: c.foreground }]}>
+                      {skill}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
           ) : null}
         </View>
 

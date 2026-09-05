@@ -324,10 +324,14 @@ export default function DeleteAccountScreen() {
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel="Delete Account Permanently">
+                {/* The tone that reads on a destructive fill is a token, not a
+                    guess that white always will. */}
                 {isDeleting ? (
-                  <ActivityIndicator color="#ffffff" />
+                  <ActivityIndicator color={c.destructiveForeground} />
                 ) : (
-                  <Text style={styles.deleteButtonText}>Delete Account Permanently</Text>
+                  <Text style={[styles.deleteButtonText, { color: c.destructiveForeground }]}>
+                    Delete Account Permanently
+                  </Text>
                 )}
               </Pressable>
 
@@ -516,7 +520,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   deleteButtonText: {
-    color: '#ffffff',
     fontSize: 15,
     fontWeight: '700',
   },
