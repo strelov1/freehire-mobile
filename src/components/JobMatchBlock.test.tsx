@@ -18,15 +18,24 @@ const sampleMatch: JobMatchResult = {
   blockers: [],
 };
 
+const JOB_SKILLS = ['react', 'typescript', 'graphql', 'nodejs', 'aws'];
+
 function render(
   state: MatchState,
   match: JobMatchResult | null | undefined = null,
   isError = false,
+  jobSkills: string[] = JOB_SKILLS,
 ) {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   act(() => {
     renderer = ReactTestRenderer.create(
-      <JobMatchBlock state={state} match={match} isError={isError} />,
+      <JobMatchBlock
+        state={state}
+        match={match}
+        isError={isError}
+        slug="stripe-senior-engineer"
+        jobSkills={jobSkills}
+      />,
     );
   });
   return renderer;
@@ -163,6 +172,41 @@ describe('JobMatchBlock', () => {
       const text = renderedText(render('guest')).join(' ');
 
       expect(text).toContain('Sign in');
+    });
+
+    it('shows a signed-out viewer the blurred teaser above the invitation', () => {
+      const text = renderedText(render('guest')).join(' ');
+
+      // Figures built from the job's own skills, not a fabricated list.
+      expect(text).toMatch(/\d+%/);
+      expect(text).toMatch(/\d+ of 5 skills/);
+      expect(text).toContain('react');
+    });
+
+    it('shows a viewer with no profile skills the same teaser', () => {
+      expect(renderedText(render('no-profile')).join(' ')).toMatch(/\d+ of 5 skills/);
+    });
+
+    it('leaves the call-to-action alone on a job with one skill', () => {
+      // No have/missing contrast to draw, so no teaser — and no figure a viewer
+      // could disprove.
+      const text = renderedText(render('guest', null, false, ['react'])).join(' ');
+
+      expect(text).toContain('Sign in');
+      expect(text).not.toMatch(/\d+%/);
+    });
+
+    it('hides the teaser from assistive technology rather than reading out a score', () => {
+      const renderer = render('guest');
+      const hidden = renderer.root.findAll(
+        (n) => n.props?.importantForAccessibility === 'no-hide-descendants',
+      );
+
+      // A screen reader offered "87% match" would be told a number about the
+      // user that nobody computed; the blur that marks it as an invitation for
+      // a sighted viewer does not exist in an accessibility tree.
+      expect(hidden.length).toBeGreaterThan(0);
+      expect(renderedText(renderer).join(' ')).toContain('Sign in');
     });
 
     it('offers a viewer with no profile skills the editor that would produce one', () => {

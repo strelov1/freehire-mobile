@@ -149,7 +149,13 @@ export default function JobDetailScreen() {
         {/* Profile match — the one signal on this screen the device can't derive
             for itself: the adjacency dictionary that knows `gcp` says something
             about `aws` lives on the server. */}
-        <JobMatchBlock state={matchState} match={match} isError={matchFailed} />
+        <JobMatchBlock
+          state={matchState}
+          match={match}
+          isError={matchFailed}
+          slug={job.public_slug}
+          jobSkills={job.skills ?? []}
+        />
 
         {/* Metadata card — mirrors the web's sticky sidebar, stacked. */}
         {(salary || (skills.length > 0 && !matchShowsSkills) || facets.length > 0 || job.source || posted) && (

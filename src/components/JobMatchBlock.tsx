@@ -1,3 +1,4 @@
+import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
@@ -7,8 +8,11 @@ import {
   blockerTone,
   matchBarSegments,
   matchHasGroups,
+  matchTeaser,
   partitionBlockers,
+  teaserChips,
   type MatchState,
+  type MatchTeaser,
 } from '@/lib/jobMatch';
 import type { JobMatchResult } from '@/lib/types';
 
@@ -40,6 +44,65 @@ function SkillChip({
         {skill}
         {via ? <Text style={styles.chipVia}> · {via}</Text> : null}
       </Text>
+    </View>
+  );
+}
+
+/** How many teaser chips the block's width takes without wrapping to a third row. */
+const TEASER_CHIP_LIMIT = 6;
+
+/**
+ * The locked-state teaser: plausible figures over the job's OWN skills, blurred.
+ *
+ * Hidden from assistive technology in full. A screen reader being read "87%
+ * match" would be told a number about the user that nobody computed — the blur
+ * is what marks it as an invitation for a sighted viewer, and there is no blur
+ * in an accessibility tree. The call-to-action beside it stays reachable, and
+ * that is what a screen reader gets instead.
+ */
+function LockedTeaser({
+  jobSkills,
+  teaser,
+  colors: c,
+}: {
+  jobSkills: string[];
+  teaser: MatchTeaser;
+  colors: FreehirePalette;
+}) {
+  const scheme = useColorScheme();
+  const chips = teaserChips(jobSkills, teaser.missing, TEASER_CHIP_LIMIT);
+
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={styles.teaser}>
+      <View style={styles.percentRow}>
+        <Text style={[styles.percent, { color: c.foreground }]}>{teaser.percent}%</Text>
+        <Text style={[styles.counts, { color: c.mutedForeground }]}>
+          {teaser.matched} of {teaser.total} skills
+        </Text>
+      </View>
+      <View style={[styles.track, { backgroundColor: c.muted }]}>
+        <View style={[styles.fill, { backgroundColor: c.brand, width: `${teaser.percent}%` }]} />
+      </View>
+      <View style={styles.chips}>
+        {chips.map((skill) => (
+          <SkillChip
+            key={skill}
+            skill={skill}
+            tone={teaser.missing.has(skill) ? 'missing' : 'have'}
+            colors={c}
+          />
+        ))}
+      </View>
+      {/* The blur sits over the figures rather than being a property of them, so
+          nothing underneath has to know it is being teased. */}
+      <BlurView
+        intensity={12}
+        tint={scheme === 'dark' ? 'dark' : 'light'}
+        style={StyleSheet.absoluteFill}
+      />
     </View>
   );
 }
@@ -78,12 +141,19 @@ export function JobMatchBlock({
   state,
   match,
   isError,
+  slug,
+  jobSkills,
 }: {
   state: MatchState;
   match: JobMatchResult | null | undefined;
   isError: boolean;
+  /** Seeds the locked teaser, so one job reads the same on every render. */
+  slug: string;
+  /** The job's own skills — what the teaser is built from, never a fabricated list. */
+  jobSkills: string[];
 }) {
   const c = getColors(useColorScheme());
+  const teaser = matchTeaser(slug, jobSkills);
 
   const card = [styles.card, { backgroundColor: c.card, borderColor: c.border }];
   const heading = (
@@ -107,6 +177,7 @@ export function JobMatchBlock({
     return (
       <View style={card}>
         {heading}
+        {teaser ? <LockedTeaser jobSkills={jobSkills} teaser={teaser} colors={c} /> : null}
         <View style={styles.ctaRow}>
           <Text style={[styles.line, styles.ctaText, { color: c.mutedForeground }]}>
             Sign in to see how this job matches your skills.
@@ -130,6 +201,7 @@ export function JobMatchBlock({
     return (
       <View style={card}>
         {heading}
+        {teaser ? <LockedTeaser jobSkills={jobSkills} teaser={teaser} colors={c} /> : null}
         <View style={styles.ctaRow}>
           <Text style={[styles.line, styles.ctaText, { color: c.mutedForeground }]}>
             Add skills to your profile to see how this job matches them.
@@ -341,6 +413,13 @@ const styles = StyleSheet.create({
   },
   chipVia: {
     fontWeight: '400',
+  },
+  teaser: {
+    gap: Space.sm,
+    // The blur overlays this box, so it must clip to it — otherwise the effect
+    // spills over the card's own rounded corner.
+    borderRadius: Radius.md,
+    overflow: 'hidden',
   },
   requirement: {
     flexDirection: 'row',
