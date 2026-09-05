@@ -1,13 +1,26 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
 import { DEFAULT_DEVELOPMENT_API_BASE, normalizeApiBase } from './apiBase';
+import { normalizeRevenueCatKeys } from './revenueCatKeys';
 
-export { DEFAULT_DEVELOPMENT_API_BASE, normalizeApiBase };
+export { DEFAULT_DEVELOPMENT_API_BASE, normalizeApiBase, normalizeRevenueCatKeys };
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const profile = process.env.EAS_BUILD_PROFILE ?? 'development';
   const allowLocalHttp = profile === 'development';
   const apiBase = normalizeApiBase(process.env.EXPO_PUBLIC_API_BASE, allowLocalHttp);
+
+  // Checked on the same terms as the API origin, and for the same reason: a value that only
+  // fails once the app is on a device fails in the one place nobody can fix it quickly. These
+  // are RevenueCat's PUBLIC platform keys — they may start a purchase and read the caller's
+  // own entitlements, and nothing more. The secret key that can grant and revoke a plan lives
+  // on the server, and `normalizeRevenueCatKeys` refuses anything without a platform prefix
+  // partly so that one cannot be pasted here by mistake.
+  const revenueCat = normalizeRevenueCatKeys(
+    process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY,
+    process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY,
+    !allowLocalHttp,
+  );
 
   // `?mode=developer` makes the device fetch /.well-known straight from the
   // domain instead of Apple's CDN, which otherwise caches the association for
@@ -121,6 +134,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ...config.extra,
       router: {},
       apiBase,
+      revenueCat,
       eas: {
         projectId: '399c136d-96e9-4e2b-bf43-81a4eb00d8a9',
       },
