@@ -6,6 +6,7 @@ import type {
   CompanyPage,
   FacetCounts,
   Job,
+  JobMatchResult,
   NotificationItem,
   NotificationsPage,
   Page,
@@ -27,6 +28,29 @@ export { authMessage } from '@/features/auth/api/authApi';
 export async function getProfile(signal?: AbortSignal): Promise<UserProfile | null> {
   const { data } = await request<{ data: UserProfile | null }>('/api/v1/me/profile', {
     authMode: 'probe',
+    signal,
+  });
+  return data;
+}
+
+/** Create-or-replace the signed-in user's profile.
+ *
+ *  The endpoint replaces the whole row, so this takes a whole profile: a caller
+ *  that sends only the fields it edited deletes the rest. `profileWrite` in
+ *  `lib/profileEdit.ts` is what builds one from an edit plus the profile it was
+ *  read from.
+ *
+ *  The server normalises what it stores (lowercases and de-duplicates skills,
+ *  subtracts the avoided set from the held one) and answers with the result, so
+ *  the response is the profile — not an echo of the request. */
+export async function saveProfile(
+  profile: UserProfile,
+  signal?: AbortSignal,
+): Promise<UserProfile> {
+  const { data } = await request<{ data: UserProfile }>('/api/v1/me/profile', {
+    method: 'PUT',
+    authMode: 'required',
+    body: profile,
     signal,
   });
   return data;
@@ -327,6 +351,21 @@ export async function getJob(slug: string, signal?: AbortSignal): Promise<Job> {
     authMode: 'public',
     signal,
   });
+  return data;
+}
+
+/** How the open job's skills are covered by the caller's own profile skills:
+ *  each classified exact/adjacent/missing, plus a coverage percent and the
+ *  advisory hard-constraint blockers. Deterministic server-side, no model.
+ *
+ *  Requires a signed-in caller who has a profile — a caller without one is a 404,
+ *  as is an unknown slug. `useJobMatch` only asks in the state where both hold,
+ *  so those are defensive paths rather than expected ones. */
+export async function getJobMatch(slug: string, signal?: AbortSignal): Promise<JobMatchResult> {
+  const { data } = await request<{ data: JobMatchResult }>(
+    `/api/v1/jobs/${encodeURIComponent(slug)}/match`,
+    { authMode: 'required', signal },
+  );
   return data;
 }
 

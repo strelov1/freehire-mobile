@@ -1,3 +1,4 @@
+import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import type { SFSymbol } from 'expo-symbols';
 import { memo, useMemo, useRef } from 'react';
@@ -10,7 +11,7 @@ import { getColors, Radius, Space } from '@/constants/freehire';
 import { useAuth } from '@/lib/authStore';
 import { useDismissedJobs } from '@/lib/useDismissedJobs';
 import { blurb, cardTags, formatSalary, timeAgo } from '@/lib/format';
-import { computeClientMatch } from '@/lib/jobMatch';
+import { computeClientMatch, matchTeaser } from '@/lib/jobMatch';
 import type { Job } from '@/lib/types';
 import { useProfile } from '@/lib/useProfile';
 import { useSavedJobs } from '@/lib/useSavedJobs';
@@ -52,6 +53,48 @@ function SwipeAction({
 }
 
 /**
+ * Wraps a strip of the card in the teaser's blur, or renders it plainly.
+ *
+ * Two of these rather than one around both, because the salary sits between the
+ * chips and the strip in the layout and must stay legible — blurring the whole
+ * tail would put the pay behind the invitation.
+ *
+ * Blurred, it is hidden from assistive technology and replaced by an invitation:
+ * a screen reader read "87% match" would be told a figure about the user that
+ * nobody computed, the blur that marks it as a tease existing only on screen.
+ */
+function Teased({
+  blurred,
+  scheme,
+  style,
+  children,
+}: {
+  blurred: boolean;
+  scheme: string | null | undefined;
+  style: object;
+  children: React.ReactNode;
+}) {
+  if (!blurred) return <View style={style}>{children}</View>;
+
+  return (
+    <View
+      accessible
+      accessibilityLabel="Sign in to see how this job matches your skills"
+      importantForAccessibility="yes"
+      style={[style, styles.teased]}>
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={style}>
+        {children}
+      </View>
+      <BlurView
+        intensity={10}
+        tint={scheme === 'dark' ? 'dark' : 'light'}
+        style={StyleSheet.absoluteFill}
+      />
+    </View>
+  );
+}
+
+/**
  * Single source of truth for how a job appears in the feed — the mobile port of
  * the web's JobRow. The whole card is pressable: tapping pushes the job-detail
  * screen (`/jobs/[slug]`), where the "Show" CTA opens the original posting.
@@ -62,7 +105,8 @@ function SwipeAction({
  * needs to re-render when its `job` identity changes.
  */
 export const JobCard = memo(function JobCard({ job }: { job: Job }) {
-  const c = getColors(useColorScheme());
+  const scheme = useColorScheme();
+  const c = getColors(scheme);
   const { user } = useAuth();
   const { data: profile } = useProfile();
   const { isSaved, toggle: toggleSaved } = useSavedJobs();
@@ -86,8 +130,26 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
   // job-card-profile-match spec.
   const profileSkills = profile?.skills ?? [];
   const hasRealMatch = !!user && profileSkills.length > 0 && skills.length > 0;
-  const match = hasRealMatch ? computeClientMatch(skills, profileSkills) : null;
+  const real = hasRealMatch ? computeClientMatch(skills, profileSkills) : null;
   const haveSet = hasRealMatch ? new Set(profileSkills.map((s) => s.toLowerCase())) : null;
+
+  // A locked viewer — signed out, or signed in with no profile skills — is shown
+  // the teaser instead: plausible figures over this job's own skills, blurred,
+  // as an invitation rather than an estimate. Seeded from the slug, so the score
+  // cannot re-roll as the list remounts the card under a scrolling thumb. A job
+  // with fewer than two skills yields none and keeps the plain card.
+  const teaser = hasRealMatch ? null : matchTeaser(job.public_slug, skills);
+  const match = real ?? teaser;
+
+  /** Whether a chip reads as not-held. Null means "no opinion" — the neutral
+   *  tint a job with too few skills to tease still gets. Both the chips and the
+   *  bar are fed from the same match, so the tints and the percentage cannot
+   *  disagree. */
+  const isMissing = (skill: string): boolean | null => {
+    if (haveSet) return !haveSet.has(skill.toLowerCase());
+    if (teaser) return teaser.missing.has(skill);
+    return null;
+  };
 
   function open() {
     router.push(`/jobs/${job.public_slug}`);
@@ -190,13 +252,15 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
         ) : null}
 
         {/* Tail: skill badges (held/missing tinted against the viewer's profile
-            when there's a real match, else the plain brand tint) on the left,
-            salary anchored right. */}
+            for a real match, against the teaser for a locked one, else the plain
+            brand tint) on the left, salary anchored right. The salary sits
+            OUTSIDE the blur: the teaser is an invitation, not a paywall over the
+            job. */}
         {(shownSkills.length > 0 || salary) && (
           <View style={styles.tailRow}>
-            <View style={styles.skills}>
+            <Teased blurred={!!teaser} scheme={scheme} style={styles.skills}>
               {shownSkills.map((skill) => {
-                const missing = haveSet != null && !haveSet.has(skill.toLowerCase());
+                const missing = isMissing(skill) === true;
                 return (
                   <View
                     key={skill}
@@ -215,7 +279,7 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
                   +{extraSkills} skills
                 </Text>
               ) : null}
-            </View>
+            </Teased>
             {salary ? (
               <Text style={[styles.salary, { color: c.foreground }]}>{salary}</Text>
             ) : null}
@@ -224,16 +288,17 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
 
         {/* Profile skill-match strip: a two-tone coverage bar (brand fill = held,
             destructive-muted track = missing) plus the "N% · matched/total"
-            label. Only when there's a real match to show — see `hasRealMatch`. */}
+            label. A real match for a viewer with a profile; the blurred teaser
+            for a locked one. */}
         {match ? (
-          <View style={styles.matchRow}>
+          <Teased blurred={!!teaser} scheme={scheme} style={styles.matchRow}>
             <View style={[styles.matchTrack, { backgroundColor: c.destructiveMuted }]}>
               <View style={[styles.matchFill, { backgroundColor: c.brand, width: `${match.percent}%` }]} />
             </View>
             <Text style={[styles.matchLabel, { color: c.mutedForeground }]}>
               {match.percent}% · {match.matched}/{match.total} skills
             </Text>
-          </View>
+          </Teased>
         ) : null}
       </Pressable>
     </Swipeable>
@@ -334,6 +399,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Space.sm,
+  },
+  /** Clips the teaser's blur to the strip it covers, so it doesn't bleed over
+   *  the card's own rounded corner or the salary beside it. */
+  teased: {
+    borderRadius: Radius.md,
+    overflow: 'hidden',
   },
   matchTrack: {
     flex: 1,

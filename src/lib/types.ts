@@ -89,15 +89,72 @@ export type LocationPreferences = {
   relocation: { open: boolean; regions?: string[]; countries?: string[] };
 };
 
-/** The signed-in user's saved profile, as returned by `GET /api/v1/me/profile`
- *  (null when they haven't saved one). A deliberate subset of the server's full
- *  model — mobile has no profile-editing screen, so it only reads the fields
- *  `filtersFromProfile` seeds the job filters from. */
+/**
+ * The signed-in user's saved profile, as returned by `GET /api/v1/me/profile`
+ * (null when they haven't saved one).
+ *
+ * Every WRITABLE field the server holds is here, and that is deliberate:
+ * `PUT /me/profile` replaces the whole row, so a type carrying a subset of it
+ * would build a write that silently drops whatever it left out — `seniorities`,
+ * the desired levels a user may have set on the web, above all. The read-only
+ * extras the response also carries (`cv`, `derived_location`, timestamps) are
+ * omitted, since no write can drop what no write can set.
+ */
 export type UserProfile = {
   specializations: string[];
   skills: string[];
+  /** Desired levels. Not edited by the mobile editor — only preserved by it. */
+  seniorities: string[];
   excluded_skills: string[];
   location_preferences: LocationPreferences | null;
+};
+
+/** One skill the viewer doesn't hold outright but has a neighbour of, per the
+ *  server's curated adjacency dictionary. `via` is the held skill that satisfied
+ *  it — `{name: "aws", via: "gcp"}` reads as "close: you have gcp". */
+export type AdjacentSkill = {
+  name: string;
+  via: string;
+};
+
+/**
+ * The per-job profile match from `GET /api/v1/jobs/:slug/match`. `matched`,
+ * `adjacent` and `missing` preserve the job's own skill order within each group.
+ * `coverage_percent` weighs an exact match as 1 and an adjacent one as one half,
+ * which is the same weighting `matchBarSegments` draws — see `lib/jobMatch.ts`.
+ *
+ * Unlike `computeClientMatch`, this is the server's classification: the adjacency
+ * dictionary lives on the backend, so `adjacent` is the part of the signal the
+ * device cannot derive for itself.
+ */
+export type JobMatch = {
+  total: number;
+  exact_count: number;
+  adjacent_count: number;
+  coverage_percent: number;
+  matched: string[];
+  adjacent: AdjacentSkill[];
+  missing: string[];
+};
+
+/** One deterministic hard-constraint check (years, education, language, work
+ *  authorization, location/work mode, certification) served beside the skill
+ *  coverage. Advisory only — a blocker never hides or downranks a job. */
+export type Blocker = {
+  category: string; // "experience" | "education" | "language" | "work_authorization" | ...
+  severity: string; // "hard" | "medium" | "soft"
+  score_cap: number; // the lower the cap, the harder the blocker
+  reason: string;
+  action: string;
+  met: boolean;
+};
+
+/** The match endpoint's full payload. `blockers` is always present — empty when
+ *  the caller has no structured résumé, so the result degrades to skill coverage
+ *  rather than erroring. Nothing renders it yet; typing half a payload would
+ *  misdescribe it. */
+export type JobMatchResult = JobMatch & {
+  blockers: Blocker[];
 };
 
 /** A user's interaction with one job. Returned by save/apply/track endpoints. */

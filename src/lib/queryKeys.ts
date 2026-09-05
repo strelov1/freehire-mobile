@@ -32,6 +32,17 @@ export const privateKeys = {
   /** The key a signed-out reader uses. Never populated — there is no plan without an
    *  account — and it exists so that state is not spelled as a user id nobody has. */
   signedOutPlan: ['private', 'none', 'plan'] as const,
+  /** One job's profile match. Private for the same reason the plan is: it is a
+   *  statement about one person's skills, and the next person to sign in on this
+   *  device must not be shown the last one's coverage. Keyed on the slug too, so
+   *  navigating between jobs swaps cache entries instead of racing. */
+  jobMatch: (userId: number, slug: string) => ['private', userId, 'job-match', slug] as const,
+  /** Every cached match for one user. Editing a profile's skills moves all of
+   *  them at once, so the invalidation is a prefix rather than a slug. */
+  jobMatches: (userId: number) => ['private', userId, 'job-match'] as const,
+  /** The key a locked viewer uses — signed out, or signed in without profile
+   *  skills. Never populated: those states have nothing to match against. */
+  signedOutJobMatch: (slug: string) => ['private', 'none', 'job-match', slug] as const,
 };
 
 export function isPrivateQueryForUser(userId: number) {

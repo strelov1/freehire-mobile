@@ -106,6 +106,7 @@ export default function RootLayout() {
                   <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'modal' }} />
                   {/* Account screens */}
                   <Stack.Screen name="account/plan" options={{ headerShown: false }} />
+                  <Stack.Screen name="account/profile" options={{ headerShown: false }} />
                   <Stack.Screen name="account/security" options={{ headerShown: false }} />
                   <Stack.Screen name="account/delete" options={{ headerShown: false }} />
                   {/* A multi-job digest's own matched-jobs list, pushed from the

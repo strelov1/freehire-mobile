@@ -32,9 +32,11 @@ export function ConfirmationModal({
         ? c.brand
         : c.muted;
 
+  // Each fill has a token naming what reads on it — `danger` was the one
+  // assuming white always would.
   const confirmTextColor =
     confirmVariant === 'danger'
-      ? '#ffffff'
+      ? c.destructiveForeground
       : confirmVariant === 'primary'
         ? c.brandForeground
         : c.foreground;
