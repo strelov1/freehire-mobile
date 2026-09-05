@@ -42,3 +42,26 @@ sync command, rather than yielding an undefined value.
 - **WHEN** the generated spacing scale no longer carries a step the app names
 - **THEN** an error naming that step and the sync command is raised, rather than the value spreading
   through the layout as a missing margin
+
+### Requirement: A component states a colour by token, or has a reason not to
+
+A component SHALL take its colours from the palette rather than writing literals, except where the
+literal is not a theme colour at all: a third party's brand mark, a shadow, or a default that every
+call site overrides.
+
+#### Scenario: A caution chip uses the caution tone
+
+- **WHEN** a component needs the warning tone
+- **THEN** it reads it from the palette, which resolves the readable variant per theme, rather than
+  branching on the colour scheme around two hand-picked ambers
+
+#### Scenario: The tone that reads on a fill comes from a token
+
+- **WHEN** a control is filled with the destructive colour
+- **THEN** its label takes the destructive foreground token rather than assuming white reads on it
+
+#### Scenario: A third party's brand colour stays a literal
+
+- **WHEN** a component draws a sign-in provider's mark
+- **THEN** it uses that provider's specified colours, which the design system neither defines nor
+  may override

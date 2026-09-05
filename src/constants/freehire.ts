@@ -32,22 +32,25 @@ export type FreehirePalette = GeneratedPalette & {
   destructiveMuted: string;
 };
 
-/** ~15% of a colour, for a fill that has to sit under text.
+/** A token at partial opacity — the React Native answer to the web's
+ *  `bg-destructive/10`, which is a Tailwind modifier and not a token at all.
  *
- *  Handles both shapes the token generator emits: `#rrggbb` (append an alpha
- *  byte) and `rgba(r, g, b, a)` (replace the alpha). Anything else is returned
- *  untouched rather than mangled into an invalid colour. */
-export function withMutedAlpha(color: string): string {
-  if (/^#[0-9a-f]{6}$/i.test(color)) return `${color}26`;
+ *  Handles both shapes the generator emits: `#rrggbb` (append an alpha byte) and
+ *  `rgba(r, g, b, a)` (replace the alpha). Anything else comes back untouched
+ *  rather than mangled into an invalid colour. */
+export function withAlpha(color: string, alpha: number): string {
+  const byte = Math.round(Math.min(Math.max(alpha, 0), 1) * 255);
+
+  if (/^#[0-9a-f]{6}$/i.test(color)) return `${color}${byte.toString(16).padStart(2, '0')}`;
 
   const rgba = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i.exec(color);
-  if (rgba) return `rgba(${rgba[1]}, ${rgba[2]}, ${rgba[3]}, 0.15)`;
+  if (rgba) return `rgba(${rgba[1]}, ${rgba[2]}, ${rgba[3]}, ${alpha})`;
 
   return color;
 }
 
 function palette(generated: GeneratedPalette): FreehirePalette {
-  return { ...generated, destructiveMuted: withMutedAlpha(generated.destructive) };
+  return { ...generated, destructiveMuted: withAlpha(generated.destructive, 0.15) };
 }
 
 const light = palette(paletteLight);

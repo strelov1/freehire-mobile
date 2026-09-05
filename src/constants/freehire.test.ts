@@ -1,4 +1,4 @@
-import { getColors, Radius, Space, withMutedAlpha } from './freehire';
+import { getColors, Radius, Space, withAlpha } from './freehire';
 import { paletteDark, paletteLight, radius, spacing } from './tokens.generated';
 
 describe('the palette comes from the generated tokens', () => {
@@ -26,25 +26,36 @@ describe('the palette comes from the generated tokens', () => {
   });
 });
 
-describe('withMutedAlpha', () => {
-  // The one derived colour: the web writes it inline as `bg-destructive/10`, an
-  // opacity modifier React Native has no equivalent of.
+describe('withAlpha', () => {
+  // The React Native answer to the web's `bg-destructive/10` — a Tailwind
+  // opacity modifier, which is not a token and so cannot be generated.
   it('appends an alpha byte to a hex colour', () => {
-    expect(withMutedAlpha('#dc2626')).toBe('#dc262626');
+    expect(withAlpha('#dc2626', 0.15)).toBe('#dc262626');
+    expect(withAlpha('#dc2626', 0.4)).toBe('#dc262666');
+    expect(withAlpha('#dc2626', 1)).toBe('#dc2626ff');
+  });
+
+  it('pads a single-digit alpha byte, so the colour stays eight characters', () => {
+    expect(withAlpha('#dc2626', 0.02)).toBe('#dc262605');
   });
 
   it('replaces the alpha of an rgba colour', () => {
     // The generator emits rgba for any source token carrying an alpha.
-    expect(withMutedAlpha('rgba(255, 255, 255, 0.08)')).toBe('rgba(255, 255, 255, 0.15)');
+    expect(withAlpha('rgba(255, 255, 255, 0.08)', 0.15)).toBe('rgba(255, 255, 255, 0.15)');
+  });
+
+  it('clamps an alpha outside the range rather than emitting a broken colour', () => {
+    expect(withAlpha('#dc2626', 2)).toBe('#dc2626ff');
+    expect(withAlpha('#dc2626', -1)).toBe('#dc262600');
   });
 
   it('leaves a colour it does not recognise untouched rather than mangling it', () => {
-    expect(withMutedAlpha('transparent')).toBe('transparent');
+    expect(withAlpha('transparent', 0.5)).toBe('transparent');
   });
 
   it('derives the destructive tint of both palettes', () => {
-    expect(getColors('light').destructiveMuted).toBe(withMutedAlpha(paletteLight.destructive));
-    expect(getColors('dark').destructiveMuted).toBe(withMutedAlpha(paletteDark.destructive));
+    expect(getColors('light').destructiveMuted).toBe(withAlpha(paletteLight.destructive, 0.15));
+    expect(getColors('dark').destructiveMuted).toBe(withAlpha(paletteDark.destructive, 0.15));
   });
 });
 
