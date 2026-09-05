@@ -100,6 +100,54 @@ export type UserProfile = {
   location_preferences: LocationPreferences | null;
 };
 
+/** One skill the viewer doesn't hold outright but has a neighbour of, per the
+ *  server's curated adjacency dictionary. `via` is the held skill that satisfied
+ *  it — `{name: "aws", via: "gcp"}` reads as "close: you have gcp". */
+export type AdjacentSkill = {
+  name: string;
+  via: string;
+};
+
+/**
+ * The per-job profile match from `GET /api/v1/jobs/:slug/match`. `matched`,
+ * `adjacent` and `missing` preserve the job's own skill order within each group.
+ * `coverage_percent` weighs an exact match as 1 and an adjacent one as one half,
+ * which is the same weighting `matchBarSegments` draws — see `lib/jobMatch.ts`.
+ *
+ * Unlike `computeClientMatch`, this is the server's classification: the adjacency
+ * dictionary lives on the backend, so `adjacent` is the part of the signal the
+ * device cannot derive for itself.
+ */
+export type JobMatch = {
+  total: number;
+  exact_count: number;
+  adjacent_count: number;
+  coverage_percent: number;
+  matched: string[];
+  adjacent: AdjacentSkill[];
+  missing: string[];
+};
+
+/** One deterministic hard-constraint check (years, education, language, work
+ *  authorization, location/work mode, certification) served beside the skill
+ *  coverage. Advisory only — a blocker never hides or downranks a job. */
+export type Blocker = {
+  category: string; // "experience" | "education" | "language" | "work_authorization" | ...
+  severity: string; // "hard" | "medium" | "soft"
+  score_cap: number; // the lower the cap, the harder the blocker
+  reason: string;
+  action: string;
+  met: boolean;
+};
+
+/** The match endpoint's full payload. `blockers` is always present — empty when
+ *  the caller has no structured résumé, so the result degrades to skill coverage
+ *  rather than erroring. Nothing renders it yet; typing half a payload would
+ *  misdescribe it. */
+export type JobMatchResult = JobMatch & {
+  blockers: Blocker[];
+};
+
 /** A user's interaction with one job. Returned by save/apply/track endpoints. */
 export type UserJob = {
   job_id?: number;

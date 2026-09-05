@@ -6,6 +6,7 @@ import type {
   CompanyPage,
   FacetCounts,
   Job,
+  JobMatchResult,
   NotificationItem,
   NotificationsPage,
   Page,
@@ -327,6 +328,21 @@ export async function getJob(slug: string, signal?: AbortSignal): Promise<Job> {
     authMode: 'public',
     signal,
   });
+  return data;
+}
+
+/** How the open job's skills are covered by the caller's own profile skills:
+ *  each classified exact/adjacent/missing, plus a coverage percent and the
+ *  advisory hard-constraint blockers. Deterministic server-side, no model.
+ *
+ *  Requires a signed-in caller who has a profile — a caller without one is a 404,
+ *  as is an unknown slug. `useJobMatch` only asks in the state where both hold,
+ *  so those are defensive paths rather than expected ones. */
+export async function getJobMatch(slug: string, signal?: AbortSignal): Promise<JobMatchResult> {
+  const { data } = await request<{ data: JobMatchResult }>(
+    `/api/v1/jobs/${encodeURIComponent(slug)}/match`,
+    { authMode: 'required', signal },
+  );
   return data;
 }
 

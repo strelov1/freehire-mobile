@@ -110,11 +110,20 @@ re-auth path handles a session that expired mid-scroll, instead of the block sil
 | `lib/types.ts` | the wire shape: `AdjacentSkill`, `JobMatch`, `Blocker`, `JobMatchResult` | — |
 | `lib/api.ts` | `getJobMatch(slug, signal)` | `transport` |
 | `lib/jobMatch.ts` | `resolveMatchState`, `matchBarSegments` (beside the existing `computeClientMatch`) | — |
-| `lib/useJobMatch.ts` | when to ask, under what key | api, queryKeys, authStore, useProfile |
-| `components/JobMatchBlock.tsx` | what each state looks like | all of the above |
+| `lib/useJobMatch.ts` | when to ask, under what key; returns the state beside the query | api, queryKeys, authStore, useProfile |
+| `components/JobMatchBlock.tsx` | what each state looks like | types, jobMatch, constants |
 
-Only the component imports React. The state machine and the bar geometry are pure functions in a
-file that already has unit tests, which is where the interesting cases are covered.
+The state machine and the bar geometry are pure functions in a file that already has unit tests,
+which is where the interesting cases are covered.
+
+**The screen owns the hook, the block is pure presentation.** The screen needs the same answer the
+block does — it decides whether to keep its own skill row from it — so calling `useJobMatch` twice
+would be one question asked in two places. It calls it once and passes the result down, which also
+leaves the block renderable in a test without a query client or a network.
+
+That shared decision is itself a pure function, `matchHasGroups(state, match)`, rather than a
+condition spelled out at both call sites: the screen hides its row on exactly the same reading the
+block shows its groups on, and the two cannot drift.
 
 `Blocker` is typed in this change though nothing renders it: it is always present in the response,
 and a type that describes half of a payload misdescribes it.

@@ -15,11 +15,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppSymbol } from '@/components/AppSymbol';
 import { CompanyLogo } from '@/components/CompanyLogo';
 import { JobDescription } from '@/components/JobDescription';
+import { JobMatchBlock } from '@/components/JobMatchBlock';
 import { RealityBadge } from '@/components/RealityBadge';
 import { SaveButton } from '@/components/SaveButton';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { formatDate, formatSalary, summaryFacets } from '@/lib/format';
+import { matchHasGroups } from '@/lib/jobMatch';
 import { useJob } from '@/lib/useJob';
+import { useJobMatch } from '@/lib/useJobMatch';
 
 /** A compact back affordance — just a chevron, no label or bar. Pops the stack,
  *  or falls back to the feed when the screen was opened cold (e.g. a deep link
@@ -40,10 +43,13 @@ function BackButton({ color }: { color: string }) {
 /**
  * The job-detail screen — a single-column port of the web's JobView (which
  * stacks to one column on mobile anyway). Reading order: company → title →
- * reality badge → Show CTA, then a metadata card (salary · skills · facets ·
- * source/posted/views), then the summary and full description. The auth-only web
- * features (Save, Report, JobMatch, apply-tracking) are omitted — this app has no
- * account.
+ * reality badge → profile match, then a metadata card (salary · skills · facets ·
+ * source/posted/views), then the summary and full description, over a pinned
+ * Show CTA.
+ *
+ * The match block takes the metadata card's skill row over whenever it has the
+ * same skills classified — see `matchShowsSkills`. Of the web's remaining
+ * auth-only features, Report and apply-tracking are still absent here.
  */
 export default function JobDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -53,6 +59,14 @@ export default function JobDetailScreen() {
   const salary = useMemo(() => formatSalary(job?.enrichment), [job?.enrichment]);
   const facets = useMemo(() => (job ? summaryFacets(job) : []), [job]);
   const skills = job?.skills?.length ? job.skills : job?.enrichment?.skills ?? [];
+  // The match is resolved from the job's OWN skills — the served dictionary
+  // facet — while the row above keeps its enrichment fallback. The server
+  // matches on the facet alone, so an enrichment-only job passed through here
+  // would buy a request that answers `total: 0`.
+  const { state: matchState, data: match, isError: matchFailed } = useJobMatch(slug, job?.skills ?? []);
+  // The flat skill row yields to the block only once the block has groups to put
+  // in its place — not merely because a request was allowed.
+  const matchShowsSkills = matchHasGroups(matchState, match);
   const posted = formatDate(job?.posted_at);
   const views = job?.view_count ?? 0;
   const applies = job?.applied_count ?? 0;
@@ -132,14 +146,21 @@ export default function JobDetailScreen() {
           </View>
         ) : null}
 
+        {/* Profile match — the one signal on this screen the device can't derive
+            for itself: the adjacency dictionary that knows `gcp` says something
+            about `aws` lives on the server. */}
+        <JobMatchBlock state={matchState} match={match} isError={matchFailed} />
+
         {/* Metadata card — mirrors the web's sticky sidebar, stacked. */}
-        {(salary || skills.length > 0 || facets.length > 0 || job.source || posted) && (
+        {(salary || (skills.length > 0 && !matchShowsSkills) || facets.length > 0 || job.source || posted) && (
           <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
             {salary ? (
               <Text style={[styles.salary, { color: c.foreground }]}>{salary}</Text>
             ) : null}
 
-            {skills.length > 0 ? (
+            {/* Withdrawn while the match block is showing the same skills told
+                apart. A failed match brings it straight back. */}
+            {skills.length > 0 && !matchShowsSkills ? (
               <View style={styles.skills}>
                 {skills.map((skill) => (
                   <View key={skill} style={[styles.badge, { backgroundColor: c.brandMuted }]}>

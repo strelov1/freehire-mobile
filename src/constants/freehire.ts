@@ -26,6 +26,9 @@ export type FreehirePalette = {
   brandRing: string;
   destructive: string;
   destructiveMuted: string;
+  warning: string;
+  warningStrong: string;
+  warningMuted: string;
 };
 
 const light: FreehirePalette = {
@@ -43,6 +46,12 @@ const light: FreehirePalette = {
   brandRing: '#b2c248',
   destructive: '#dc2626', // oklch(0.577 0.245 27.325) — shadcn default red-600
   destructiveMuted: '#dc262626', // destructive at ~15% alpha
+  // The third tone the profile match needs: a skill held only through a
+  // neighbour is neither had nor missing. Values taken from the synced
+  // `tokens.generated.ts` so they are the web's amber, not one picked by eye.
+  warning: '#fe9a00',
+  warningStrong: '#bb4d00',
+  warningMuted: '#fef3c6',
 };
 
 const dark: FreehirePalette = {
@@ -60,6 +69,9 @@ const dark: FreehirePalette = {
   brandRing: '#8ea24f', // oklch(0.6 0.09 118)
   destructive: '#f87171', // oklch(0.704 0.191 22.216) — calmer red on dark
   destructiveMuted: '#f8717126', // destructive at ~15% alpha
+  warning: '#ffb900',
+  warningStrong: '#ffb900', // the dark theme reads the amber itself as the text tone
+  warningMuted: '#461901',
 };
 
 /** Accepts RN's `ColorSchemeName` (which includes 'unspecified') — anything that
