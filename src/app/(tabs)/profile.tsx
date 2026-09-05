@@ -16,7 +16,7 @@ import { AppSymbol } from '@/components/AppSymbol';
 import { useAuth } from '@/lib/authStore';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { formatDate } from '@/lib/format';
-import { planView } from '@/features/billing/model/planView';
+import { planHeadline, planView } from '@/features/billing/model/planView';
 import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
 import { usePlan } from '@/lib/usePlan';
 
@@ -38,18 +38,7 @@ export default function ProfileScreen() {
   // The row states the plan or states that it could not be read — never a guess. Saying
   // "Free" over a failed request would be wrong in the one direction that matters: it invites
   // somebody who is already paying to buy the same plan again.
-  const planState = planView({ plan, canPurchase: false, failed: planError });
-  const planCard =
-    planState.kind === 'pro'
-      ? {
-          title: 'freehire Pro',
-          detail: planState.proUntil ? `Active until ${formatDate(planState.proUntil.toISOString())}` : 'Active',
-        }
-      : planState.kind === 'free'
-        ? { title: 'Free plan', detail: 'Everything freehire does, with daily limits' }
-        : planState.kind === 'unavailable'
-          ? { title: 'Plan', detail: 'Unavailable right now' }
-          : { title: 'Plan', detail: 'Loading…' };
+  const planCard = planHeadline(planView({ plan, canPurchase: false, failed: planError }));
 
   // A guest opening this tab wants to sign in, so hand them the sheet rather
   // than a screen whose only content is a button that opens it. Once per

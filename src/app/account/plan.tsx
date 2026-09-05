@@ -15,12 +15,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppSymbol } from '@/components/AppSymbol';
 import { Radius, Space, getColors } from '@/constants/freehire';
 import { allowanceRows } from '@/features/billing/model/allowances';
-import { planView } from '@/features/billing/model/planView';
+import { planHeadline, planView } from '@/features/billing/model/planView';
 import { isPurchasingSupported } from '@/features/billing/purchases';
 import { WEB_PLAN_URL, storeSubscriptionsURL } from '@/features/billing/storeLinks';
 import { usePurchase, type PurchaseOutcome } from '@/features/billing/usePurchase';
 import { useAuth } from '@/lib/authStore';
-import { formatDate } from '@/lib/format';
 import { usePlan, useRefreshPlan } from '@/lib/usePlan';
 
 const PRIVACY_POLICY_URL = 'https://freehire.me/privacy';
@@ -61,6 +60,7 @@ export default function PlanScreen() {
     signedIn: !!user,
     failed: isError,
   });
+  const headline = planHeadline(view);
   const allowances = allowanceRows(plan);
 
   const settle = useCallback(
@@ -114,24 +114,8 @@ export default function PlanScreen() {
             <ActivityIndicator color={c.brandStrong} />
           ) : (
             <>
-              <Text style={[styles.planName, { color: c.foreground }]}>
-                {view.kind === 'pro'
-                  ? 'freehire Pro'
-                  : view.kind === 'free'
-                    ? 'Free'
-                    : view.kind === 'signed_out'
-                      ? 'Sign in to see your plan'
-                      : 'Plan unavailable'}
-              </Text>
-              <Text style={[styles.planNote, { color: c.mutedForeground }]}>
-                {view.kind === 'pro' && view.proUntil
-                  ? `Active until ${formatDate(view.proUntil.toISOString())}`
-                  : view.kind === 'free'
-                    ? 'Everything freehire does, with daily limits.'
-                    : view.kind === 'signed_out'
-                      ? 'A plan belongs to an account, so there is nothing to show yet.'
-                      : 'We could not read your plan just now.'}
-              </Text>
+              <Text style={[styles.planName, { color: c.foreground }]}>{headline.title}</Text>
+              <Text style={[styles.planNote, { color: c.mutedForeground }]}>{headline.detail}</Text>
             </>
           )}
         </View>

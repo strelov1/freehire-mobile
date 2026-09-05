@@ -1,4 +1,4 @@
-import { planView } from './planView';
+import { planHeadline, planView } from './planView';
 import type { Plan } from '../api/planApi';
 
 const future = '2099-01-01T00:00:00Z';
@@ -120,5 +120,39 @@ describe('planView', () => {
   it('ignores an expiry it cannot read', () => {
     const view = planView({ plan: plan({ pro_until: 'whenever' }), canPurchase: true });
     expect(view.kind).toBe('free');
+  });
+});
+
+describe('planHeadline', () => {
+  it('names the plan and when it runs out', () => {
+    const view = planView({ plan: plan(), canPurchase: false });
+    expect(planHeadline(view).title).toBe('freehire Pro');
+    expect(planHeadline(view).detail).toMatch(/^Active until /);
+  });
+
+  // Every state has words. A kind with none would render an empty card, and the switch is
+  // exhaustive precisely so a new kind cannot be added without deciding what it says.
+  it('has something to say in every state', () => {
+    const cases = [
+      planView({ plan: undefined, canPurchase: false, signedIn: false }),
+      planView({ plan: undefined, canPurchase: false }),
+      planView({ plan: undefined, canPurchase: false, failed: true }),
+      planView({ plan: { plan: 'free', resets_at: future }, canPurchase: false }),
+      planView({ plan: plan(), canPurchase: false }),
+    ];
+    for (const view of cases) {
+      const { title, detail } = planHeadline(view);
+      expect(title.length).toBeGreaterThan(0);
+      expect(detail.length).toBeGreaterThan(0);
+    }
+    expect(new Set(cases.map((v) => planHeadline(v).title)).size).toBe(cases.length);
+  });
+
+  // The two surfaces described one account differently before this existed — "Free plan" on
+  // the profile row against "Free" on the plan screen, each through its own ternaries.
+  it('gives both surfaces the same words for the same plan', () => {
+    const view = planView({ plan: { plan: 'free', resets_at: future }, canPurchase: true });
+    const other = planView({ plan: { plan: 'free', resets_at: future }, canPurchase: false });
+    expect(planHeadline(view)).toEqual(planHeadline(other));
   });
 });
