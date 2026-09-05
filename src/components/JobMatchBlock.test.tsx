@@ -83,6 +83,68 @@ describe('JobMatchBlock', () => {
     });
   });
 
+  describe('the requirements section', () => {
+    const withBlockers: JobMatchResult = {
+      ...sampleMatch,
+      blockers: [
+        {
+          category: 'language',
+          severity: 'soft',
+          score_cap: 80,
+          reason: 'Asks for German, your CV lists English',
+          action: '',
+          met: false,
+        },
+        {
+          category: 'work_authorization',
+          severity: 'hard',
+          score_cap: 20,
+          reason: 'Needs an EU work permit',
+          action: '',
+          met: false,
+        },
+        {
+          category: 'education',
+          severity: 'medium',
+          score_cap: 60,
+          reason: 'Degree requirement met',
+          action: '',
+          met: true,
+        },
+      ],
+    };
+
+    it('lists the unmet constraints hardest-first, then the met ones', () => {
+      const text = renderedText(render('ready', withBlockers));
+      const requirements = text.slice(text.indexOf('Requirements'));
+
+      expect(requirements).toEqual([
+        'Requirements',
+        'Needs an EU work permit',
+        'Asks for German, your CV lists English',
+        'Degree requirement met',
+      ]);
+    });
+
+    it('renders no section when the caller has no structured résumé', () => {
+      // The server sends an empty array rather than erroring, and a heading over
+      // nothing would claim requirements were assessed when they were not.
+      expect(renderedText(render('ready', sampleMatch)).join(' ')).not.toContain('Requirements');
+    });
+
+    it('leaves the coverage untouched', () => {
+      // Blockers are advisory: they cap nothing the client computes, and the
+      // server's coverage comes from skills alone.
+      const withText = renderedText(render('ready', withBlockers)).join(' ');
+      const withoutText = renderedText(render('ready', sampleMatch)).join(' ');
+
+      expect(withText).toContain('50%');
+      expect(withoutText).toContain('50%');
+      expect(withText).toContain('3 of 5 skills');
+      expect(withoutText).toContain('3 of 5 skills');
+    });
+  });
+
   describe('the states that show no match', () => {
     it('says there is not enough data for a job with no skills', () => {
       expect(renderedText(render('no-skills')).join(' ')).toContain('Not enough data');

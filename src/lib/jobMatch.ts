@@ -1,9 +1,17 @@
 /**
- * Client-side profile skill match, ported from the web's
- * `hire/web/src/lib/jobMatch.ts::computeClientMatch`. Exact case-insensitive
- * overlap only — no adjacency/fuzzy matching, which is a separate,
- * server-side signal the mobile card doesn't show.
+ * Everything the profile match decides without React or a network, ported from
+ * the web's `hire/web/src/lib/jobMatch.ts`:
+ *
+ * - `computeClientMatch`, the feed card's exact-only overlap, computed on the
+ *   device with no request. No adjacency — that dictionary is the server's.
+ * - `resolveMatchState`, which of the detail block's five states applies, and
+ *   therefore whether the endpoint may be called at all.
+ * - `matchHasGroups`, the one reading the screen hides its own skill row on.
+ * - `matchBarSegments`, the two-segment bar's geometry.
+ * - `partitionBlockers` / `blockerTone`, the advisory hard-constraint list.
  */
+
+import type { Blocker } from './types';
 
 export type ClientMatch = { total: number; matched: number; percent: number };
 
@@ -63,6 +71,40 @@ export function matchHasGroups(
   match: { total: number } | null | undefined,
 ): boolean {
   return state === 'ready' && !!match && match.total > 0;
+}
+
+/**
+ * Split the hard-constraint blockers for display: the unmet ones first — hardest
+ * first, a lower `score_cap` being a harder blocker — then the met ones, shown
+ * as satisfied.
+ *
+ * They are advisory. Nothing derived from them may hide, filter or downrank the
+ * job, and none of them moves the coverage figure: the server computes coverage
+ * from skills alone, and an unmet work permit is not a skill the candidate is
+ * missing.
+ */
+export function partitionBlockers(blockers: Blocker[] | null | undefined): {
+  unmet: Blocker[];
+  met: Blocker[];
+} {
+  const all = blockers ?? [];
+  return {
+    unmet: all.filter((b) => !b.met).sort((a, b) => a.score_cap - b.score_cap),
+    met: all.filter((b) => b.met),
+  };
+}
+
+/** Which palette tone an unmet constraint reads in. A hard constraint — work
+ *  authorization, a required certification — is blocking; a fit constraint like
+ *  location or language is a caution; anything else is a quiet note. The web
+ *  returns a Tailwind class here; this app's colours are palette lookups, so
+ *  this returns the token name to read off `getColors`. */
+export type BlockerTone = 'destructive' | 'warningStrong' | 'mutedForeground';
+
+export function blockerTone(severity: string): BlockerTone {
+  if (severity === 'hard') return 'destructive';
+  if (severity === 'medium') return 'warningStrong';
+  return 'mutedForeground';
 }
 
 /** The two coverage-bar segment widths, as percentages of the track: a

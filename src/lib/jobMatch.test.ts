@@ -1,9 +1,12 @@
 import {
+  blockerTone,
   computeClientMatch,
   matchBarSegments,
   matchHasGroups,
+  partitionBlockers,
   resolveMatchState,
 } from './jobMatch';
+import type { Blocker } from './types';
 
 describe('computeClientMatch', () => {
   it('counts a partial case-insensitive overlap', () => {
@@ -143,5 +146,64 @@ describe('matchBarSegments', () => {
       exact: 0,
       adjacent: 0,
     });
+  });
+});
+
+describe('partitionBlockers', () => {
+  function blocker(over: Partial<Blocker>): Blocker {
+    return {
+      category: 'experience',
+      severity: 'medium',
+      score_cap: 70,
+      reason: 'Needs 5 years, your CV shows 3',
+      action: '',
+      met: false,
+      ...over,
+    };
+  }
+
+  it('splits the unmet from the met', () => {
+    const { unmet, met } = partitionBlockers([
+      blocker({ category: 'work_authorization', met: false }),
+      blocker({ category: 'education', met: true }),
+    ]);
+
+    expect(unmet.map((b) => b.category)).toEqual(['work_authorization']);
+    expect(met.map((b) => b.category)).toEqual(['education']);
+  });
+
+  it('puts the hardest unmet constraint first', () => {
+    // A lower score cap is a harder blocker.
+    const { unmet } = partitionBlockers([
+      blocker({ category: 'language', score_cap: 80 }),
+      blocker({ category: 'work_authorization', score_cap: 20 }),
+      blocker({ category: 'experience', score_cap: 50 }),
+    ]);
+
+    expect(unmet.map((b) => b.category)).toEqual([
+      'work_authorization',
+      'experience',
+      'language',
+    ]);
+  });
+
+  it('reads a missing list as no blockers rather than erroring', () => {
+    // The server sends an empty array for a caller with no structured résumé.
+    expect(partitionBlockers(undefined)).toEqual({ unmet: [], met: [] });
+    expect(partitionBlockers(null)).toEqual({ unmet: [], met: [] });
+    expect(partitionBlockers([])).toEqual({ unmet: [], met: [] });
+  });
+});
+
+describe('blockerTone', () => {
+  it('reads a hard constraint as blocking and a soft one as a quiet note', () => {
+    // A work permit the candidate lacks must not read like a preference unmet.
+    expect(blockerTone('hard')).toBe('destructive');
+    expect(blockerTone('medium')).toBe('warningStrong');
+    expect(blockerTone('soft')).toBe('mutedForeground');
+  });
+
+  it('falls back to the quiet tone for a severity it does not know', () => {
+    expect(blockerTone('something_new')).toBe('mutedForeground');
   });
 });

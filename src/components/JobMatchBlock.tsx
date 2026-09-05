@@ -1,8 +1,15 @@
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
+import { AppSymbol } from '@/components/AppSymbol';
 import { getColors, Radius, Space, type FreehirePalette } from '@/constants/freehire';
-import { matchBarSegments, matchHasGroups, type MatchState } from '@/lib/jobMatch';
+import {
+  blockerTone,
+  matchBarSegments,
+  matchHasGroups,
+  partitionBlockers,
+  type MatchState,
+} from '@/lib/jobMatch';
 import type { JobMatchResult } from '@/lib/types';
 
 /** One skill chip. The three tones are the block's whole vocabulary: brand for a
@@ -166,6 +173,7 @@ export function JobMatchBlock({
 
   const segments = matchBarSegments(match);
   const held = match.exact_count + match.adjacent_count;
+  const requirements = partitionBlockers(match.blockers);
 
   return (
     <View style={card}>
@@ -218,6 +226,34 @@ export function JobMatchBlock({
             <SkillChip key={skill} skill={skill} tone="missing" colors={c} />
           ))}
         </SkillGroup>
+      ) : null}
+
+      {/* The deterministic hard-constraint checks the same response carries.
+          Advisory: they never hide the job, never downrank it, and never move
+          the coverage above — the server computes that from skills alone, and
+          a work permit is not a skill. */}
+      {requirements.unmet.length > 0 || requirements.met.length > 0 ? (
+        <View style={styles.group}>
+          <Text style={[styles.groupTitle, { color: c.mutedForeground }]}>Requirements</Text>
+          {requirements.unmet.map((b) => (
+            <View key={`${b.category}-${b.reason}`} style={styles.requirement}>
+              <AppSymbol
+                name="exclamationmark.triangle.fill"
+                size={13}
+                tintColor={c[blockerTone(b.severity)]}
+              />
+              <Text style={[styles.requirementText, { color: c[blockerTone(b.severity)] }]}>
+                {b.reason}
+              </Text>
+            </View>
+          ))}
+          {requirements.met.map((b) => (
+            <View key={`${b.category}-${b.reason}`} style={styles.requirement}>
+              <AppSymbol name="checkmark" size={13} tintColor={c.brand} />
+              <Text style={[styles.requirementText, { color: c.mutedForeground }]}>{b.reason}</Text>
+            </View>
+          ))}
+        </View>
       ) : null}
     </View>
   );
@@ -305,5 +341,15 @@ const styles = StyleSheet.create({
   },
   chipVia: {
     fontWeight: '400',
+  },
+  requirement: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+  requirementText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
   },
 });
