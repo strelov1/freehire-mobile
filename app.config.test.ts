@@ -37,9 +37,13 @@ describe('release purchase configuration', () => {
     expect(normalizeRevenueCatKeys(`  ${keys.ios} `, `\n${keys.android}`, true)).toEqual(keys);
   });
 
-  it('fails a release config before build when a key is missing', () => {
-    expect(() => normalizeRevenueCatKeys(undefined, keys.android, true)).toThrow('required');
-    expect(() => normalizeRevenueCatKeys(keys.ios, '', true)).toThrow('required');
+  // Absence is a decision, not a mistake: an app whose store integration is not configured
+  // yet still has to be releasable, and it already behaves correctly — the purchase surface is
+  // simply absent. Failing the build here blocked every release for a feature nobody had
+  // finished setting up.
+  it('permits absent keys even in a release build', () => {
+    expect(normalizeRevenueCatKeys(undefined, keys.android, true)).toEqual({ ios: '', android: keys.android });
+    expect(normalizeRevenueCatKeys(undefined, undefined, true)).toEqual({ ios: '', android: '' });
   });
 
   // The two keys are interchangeable strings to a human and not to RevenueCat, so swapping
@@ -62,8 +66,10 @@ describe('release purchase configuration', () => {
     expect(normalizeRevenueCatKeys(undefined, undefined, false)).toEqual({ ios: '', android: '' });
   });
 
-  // A key present but wrong is a mistake in every profile, so it is refused everywhere.
-  it('still rejects a malformed key outside a release build', () => {
+  // A key PRESENT but wrong is the case that would otherwise ship: a build that believes it
+  // can sell and cannot. Refused in every profile.
+  it('rejects a malformed key in every profile', () => {
     expect(() => normalizeRevenueCatKeys('sk_oops', undefined, false)).toThrow();
+    expect(() => normalizeRevenueCatKeys('sk_oops', undefined, true)).toThrow();
   });
 });
