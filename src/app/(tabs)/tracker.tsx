@@ -18,7 +18,7 @@ import { AppSymbol } from '@/components/AppSymbol';
 import { ApplicationCard } from '@/components/ApplicationCard';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useAuth } from '@/lib/authStore';
-import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
+import { useTabBarClearance } from '@/lib/tabBarVisibility';
 import {
   deriveFilterCounts,
   FILTER_LABELS,
@@ -30,6 +30,7 @@ import type { TrackedJob } from '@/lib/types';
 import { useTrackedJobs } from '@/lib/useTracker';
 
 export default function TrackerScreen() {
+  const tabBarClearance = useTabBarClearance();
   const c = getColors(useColorScheme());
   const { user } = useAuth();
   const [selectedFilter, setSelectedFilter] = useState<TrackerFilter>('all');
@@ -233,7 +234,7 @@ export default function TrackerScreen() {
               onPress={() => router.push({ pathname: '/tracker/[id]', params: { id: item.id } })}
             />
           )}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: tabBarClearance }]}
           ItemSeparatorComponent={() => <View style={{ height: Space.sm }} />}
           refreshControl={
             <RefreshControl
@@ -326,7 +327,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: Space.lg,
     paddingTop: Space.xs,
-    paddingBottom: Space.xl + TAB_BAR_HEIGHT,
   },
   guestCard: {
     borderWidth: 1,
