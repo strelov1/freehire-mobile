@@ -7,11 +7,13 @@ import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/R
 
 import { AppSymbol } from '@/components/AppSymbol';
 import { CompanyLogo } from '@/components/CompanyLogo';
+import { RealityBadge } from '@/components/RealityBadge';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useAuth } from '@/lib/authStore';
 import { useDismissedJobs } from '@/lib/useDismissedJobs';
-import { blurb, cardTags, formatSalary, timeAgo } from '@/lib/format';
+import { blurb, cardTags, formatCount, formatSalary, timeAgo } from '@/lib/format';
 import { computeClientMatch, matchTeaser } from '@/lib/jobMatch';
+import { freshnessBadges } from '@/lib/reality';
 import type { Job } from '@/lib/types';
 import { useProfile } from '@/lib/useProfile';
 import { useSavedJobs } from '@/lib/useSavedJobs';
@@ -117,6 +119,13 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
   // Derived display strings — memoized so scrolling doesn't re-run the HTML strip.
   const posted = useMemo(() => timeAgo(job.posted_at), [job.posted_at]);
   const tags = useMemo(() => cardTags(job), [job]);
+  // The public view count, which the feed serves and the card used to drop. Zero
+  // renders nothing: "0 views" reads as a dead posting rather than a new one.
+  const views = job.view_count ?? 0;
+  const fresh = useMemo(
+    () => freshnessBadges(job.posted_at, job.reality, job.applied_count ?? 0, job.closed_at),
+    [job.posted_at, job.reality, job.applied_count, job.closed_at],
+  );
   const text = useMemo(() => blurb(job), [job]);
   const salary = useMemo(() => formatSalary(job.enrichment), [job.enrichment]);
   const skills = job.skills ?? [];
@@ -224,9 +233,25 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
               </Text>
             )}
           </View>
-          {posted ? (
-            <Text style={[styles.posted, { color: c.mutedForeground }]}>{posted}</Text>
-          ) : null}
+          {/* Views beside the timestamp, the rail the web puts them in. Sorting
+              by "Most viewed" without showing the figure it sorted on left the
+              order looking arbitrary. */}
+          <View style={styles.railEnd}>
+            {views > 0 ? (
+              <View
+                accessible
+                accessibilityLabel={`${views.toLocaleString('en-US')} views`}
+                style={styles.views}>
+                <AppSymbol name="eye" size={12} tintColor={c.mutedForeground} />
+                <Text style={[styles.posted, { color: c.mutedForeground }]}>
+                  {formatCount(views)}
+                </Text>
+              </View>
+            ) : null}
+            {posted ? (
+              <Text style={[styles.posted, { color: c.mutedForeground }]}>{posted}</Text>
+            ) : null}
+          </View>
         </View>
 
         {/* The title is the card's hero — a size up with tight leading. */}
@@ -234,9 +259,17 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
           {job.title}
         </Text>
 
-        {/* Signal row: quiet outline chips read as metadata, not decoration. */}
-        {tags.length > 0 ? (
+        {/* Signal row: the trust verdict first, then what is fresh about the
+            posting, then its stable facets — a warning that a posting may not be
+            real outranks a note that it is new. */}
+        {job.reality || fresh.length > 0 || tags.length > 0 ? (
           <View style={styles.chipRow}>
+            <RealityBadge reality={job.reality} postedAt={job.posted_at} />
+            {fresh.map((label) => (
+              <View key={label} style={[styles.chip, { backgroundColor: c.brandMuted, borderColor: c.brandMuted }]}>
+                <Text style={[styles.chipText, { color: c.brandStrong }]}>{label}</Text>
+              </View>
+            ))}
             {tags.map((tag) => (
               <View key={tag} style={[styles.chip, { borderColor: c.border }]}>
                 <Text style={[styles.chipText, { color: c.mutedForeground }]}>{tag}</Text>
@@ -331,6 +364,16 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 14,
     fontWeight: '500',
+  },
+  railEnd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space.sm,
+  },
+  views: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   posted: {
     fontSize: 12,

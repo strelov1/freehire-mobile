@@ -369,3 +369,19 @@ export function profileLocationSummary(loc: LocationPreferences | null): string[
 
   return lines;
 }
+
+/** Abbreviate a count for a rail that shares its width with a truncating company
+ *  name: 1.2K, 15K, 1.3M. Ported from the web's `formatCount`.
+ *
+ *  Display only — assistive technology is given the exact figure, which has no
+ *  such width to fight over. */
+export function formatCount(n: number): string {
+  const abs = Math.abs(n);
+  if (abs >= 1e6) return trimZero((n / 1e6).toFixed(1)) + 'M';
+  if (abs >= 1e3) return trimZero((n / 1e3).toFixed(abs >= 1e5 ? 0 : 1)) + 'K';
+  return String(n);
+}
+
+function trimZero(s: string): string {
+  return s.replace(/\.0$/, '');
+}

@@ -97,20 +97,21 @@ export default function CompanyScreen() {
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={[styles.fill, { backgroundColor: c.background }]}>
+      {/* The company rail sits inline with the back chevron, the shape the job
+          screen uses for the same pair. A 48px logo over its own name cost a
+          fifth of the screen to say what the row below already says, and pushed
+          the roles — the reason for the visit — under the fold. */}
       <View style={styles.topBar}>
         <BackButton color={c.foreground} />
+        <CompanyLogo name={company.name} size={32} />
+        <Text numberOfLines={1} style={[styles.name, { color: c.foreground }]}>
+          {company.name}
+        </Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Header: logo, name, tagline, badges. */}
-        <View style={styles.header}>
-          <CompanyLogo name={company.name} size={48} />
-          <View style={styles.headerText}>
-            <Text style={[styles.name, { color: c.foreground }]}>{company.name}</Text>
-            {company.tagline ? (
-              <Text style={[styles.tagline, { color: c.mutedForeground }]}>{company.tagline}</Text>
-            ) : null}
-          </View>
-        </View>
+        {company.tagline ? (
+          <Text style={[styles.tagline, { color: c.mutedForeground }]}>{company.tagline}</Text>
+        ) : null}
 
         {(info?.top_company || info?.is_hiring) && (
           <View style={styles.badgeRow}>
@@ -190,6 +191,7 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: Space.sm,
     paddingHorizontal: Space.sm,
     paddingVertical: Space.xs,
   },
@@ -204,19 +206,11 @@ const styles = StyleSheet.create({
     paddingBottom: Space.xl,
     gap: Space.md,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Space.md,
-  },
-  headerText: {
-    flex: 1,
-    gap: Space.xs,
-  },
   name: {
-    fontSize: 22,
+    flexShrink: 1,
+    fontSize: 17,
     fontWeight: '700',
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   tagline: {
     fontSize: 14,
