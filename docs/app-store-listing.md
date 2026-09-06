@@ -201,6 +201,38 @@ python3 scripts/asc-review-details.py +CC... 'the-password'
 The contact phone is the one field the API will not accept a placeholder for,
 which is why it is an argument and not a constant.
 
+## Submitting
+
+Everything the API can set is set: build attached, description, keywords,
+promotional text, support and marketing URLs, six screenshots, categories,
+content rights, age rating, price schedule, and both subscriptions at
+`READY_TO_SUBMIT`.
+
+Two things remain, and neither can be scripted:
+
+1. **The contact phone**, via `scripts/asc-review-details.py`.
+2. **The App Privacy questionnaire**, in the web UI. `appDataUsages` and every
+   neighbouring path return 404 — there is no API for it at any version. The
+   answers are derived per-endpoint in [app-store-privacy.md](app-store-privacy.md)
+   and must match the privacy manifest, because Apple cross-checks them.
+
+Then:
+
+```sh
+ASC_KEY_ID=A3WPL9J4BH ASC_KEY=~/Downloads/AuthKey_A3WPL9J4BH.p8 \
+ASC_ISSUER=1880749a-1238-40bc-ac7e-e072c446b056 \
+python3 scripts/asc-submit.py --dry-run   # then without --dry-run
+```
+
+The dry run attaches the version and reports what Apple objects to without
+submitting. Do that first: Apple's own message for an unreviewable version is
+"please check associated errors", which does not say which, so the script names
+the checks it can make itself.
+
+One quirk worth knowing: a `reviewSubmission` can be created but neither deleted
+nor cancelled while empty. There is already one open against this app from a
+diagnostic run; the script reuses it rather than leaving a second behind.
+
 ---
 
 ## Screenshots
