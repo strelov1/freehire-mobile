@@ -39,7 +39,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     // app, not a renamed one.
     name: 'freehire',
     slug: 'freehire-mobile',
-    version: '1.0.0',
+    version: '1.0.1',
     orientation: 'portrait',
     icon: './assets/images/freehire-icon-light.png',
     scheme: 'freehiremobile',
