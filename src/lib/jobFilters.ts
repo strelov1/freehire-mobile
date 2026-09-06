@@ -14,8 +14,15 @@
 
 import type { UserProfile } from './types';
 
+/** The orderings the feed can ask for. Ported from the web's `facetModel.ts`, so
+ *  the two surfaces name the same four things. */
+export type JobSort = 'relevance' | 'newest' | 'views' | 'match';
+
 export type JobFilters = {
   q: string;
+  /** The ordering the reader chose, or null for "whatever the server does by
+   *  default". Null is not a synonym for any of the four: see `defaultSortFor`. */
+  sort: JobSort | null;
   facets: Record<string, string[]>; // param -> selected value codes
   // Skills is the one facet with exclude support (a profile can name skills to
   // avoid; see filtersFromProfile). Every other facet stays include-only in
@@ -25,7 +32,94 @@ export type JobFilters = {
   postedWithinDays: number | null; // maps to posted_within_days; null = Any
 };
 
-export const emptyFilters: JobFilters = { q: '', facets: {}, skillsExclude: [], postedWithinDays: null };
+export const emptyFilters: JobFilters = {
+  q: '',
+  sort: null,
+  facets: {},
+  skillsExclude: [],
+  postedWithinDays: null,
+};
+
+/** The ordering the endpoint applies when a request carries no `sort` at all:
+ *  relevance under query text, posting date without it (see `searchSort` in
+ *  hire's `internal/api/handler/search.go`). Mirrored rather than restated, so
+ *  "our default" and "what the server does with no parameter" cannot drift —
+ *  which is also why serializing the default means writing nothing. */
+export function defaultSortFor(q: string): JobSort {
+  return q.trim() ? 'relevance' : 'newest';
+}
+
+/** The ordering a filter set actually resolves to.
+ *
+ *  An unchosen ordering resolves to the contextual default, and an explicit
+ *  `relevance` collapses to the browse default once the query is cleared — it
+ *  has nothing left to rank against. `relevance` is the ONLY ordering that
+ *  collapses: `views` ranks by a stored figure, so an emptied query leaves it
+ *  perfectly servable and discarding the reader's choice there would be a bug,
+ *  not a fallback. */
+export function effectiveSort(f: JobFilters): JobSort {
+  const sort = f.sort ?? defaultSortFor(f.q);
+  return sort === 'relevance' && !f.q.trim() ? 'newest' : sort;
+}
+
+/** The `sort` values the search endpoint accepts, keyed by our vocabulary.
+ *  `relevance` is absent on purpose: the endpoint spells it as no `sort`
+ *  parameter at all, so a sort with no entry here is one that serializes to
+ *  nothing. `order` is never sent — `desc` is its default and the only
+ *  direction any of these orderings wants. */
+const SORT_PARAM: Partial<Record<JobSort, string>> = {
+  newest: 'posted_at',
+  views: 'view_count',
+  match: 'match',
+};
+
+const SORT_LABEL: Record<JobSort, string> = {
+  relevance: 'Relevance',
+  newest: 'Newest',
+  views: 'Most viewed',
+  match: 'Best match',
+};
+
+export type SortOption = { value: JobSort; label: string };
+
+/**
+ * The orderings a reader can choose between, in display order.
+ *
+ * `relevance` is the only conditional one: it ranks against query text, so
+ * without any there is nothing for it to rank.
+ *
+ * `match` is offered to everyone, including a reader with no skills on file.
+ * Hiding it would answer "why can I not sort by fit?" with nothing at all — and
+ * would hide the reason to fill in a profile from exactly the people who have
+ * not. They get an explanation instead; see `matchSortNeedsSkills`.
+ */
+export function sortOptionsFor(q: string): SortOption[] {
+  const values: JobSort[] = [...(q.trim() ? (['relevance'] as const) : []), 'newest', 'views', 'match'];
+  return values.map((value) => ({ value, label: SORT_LABEL[value] }));
+}
+
+/** The option the control shows as selected. `relevance` is the one that can be
+ *  in state and not offered — the query it ranked against may since have been
+ *  cleared — so the control then names what the server will ACTUALLY serve
+ *  rather than showing nothing selected. */
+export function selectedSortFor(f: JobFilters): JobSort {
+  const sort = effectiveSort(f);
+  return sortOptionsFor(f.q).some((o) => o.value === sort) ? sort : defaultSortFor(f.q);
+}
+
+/** Whether the feed should explain that the match ordering has nothing to rank
+ *  against: only when match is actually in force AND the reader has no skills on
+ *  file. The server degrades such a request to newest rather than refusing it,
+ *  so the list still fills — and a reader told nothing reads that as the sort
+ *  being broken rather than as a profile they have not filled in yet. */
+export function matchSortNeedsSkills(f: JobFilters, hasSkills: boolean): boolean {
+  return effectiveSort(f) === 'match' && !hasSkills;
+}
+
+/** Replace the chosen ordering. */
+export function setSort(f: JobFilters, sort: JobSort): JobFilters {
+  return { ...f, sort };
+}
 
 /** A filterable facet group with a fixed vocabulary (countries are dynamic and
  *  handled separately — see the Filters screen). Order here is also the order
@@ -100,6 +194,13 @@ export function filtersToQuery(f: JobFilters): string {
   const p = new URLSearchParams();
   const q = f.q.trim();
   if (q) p.append('q', q);
+  // The default ordering is written as nothing at all — which is exactly how
+  // the endpoint spells it, and why "our default" cannot drift from "what the
+  // server does with no parameter". Relevance additionally has no wire value of
+  // its own, so it serializes to nothing wherever it lands.
+  const sort = effectiveSort(f);
+  const sortParam = sort === defaultSortFor(f.q) ? undefined : SORT_PARAM[sort];
+  if (sortParam) p.append('sort', sortParam);
   for (const param of FACET_PARAMS) {
     for (const value of f.facets[param] ?? []) p.append(param, value);
   }
@@ -219,5 +320,7 @@ export function filtersFromProfile(profile: UserProfile): JobFilters {
     if (countries.length) facets.countries = countries;
   }
 
-  return { q: '', facets, skillsExclude, postedWithinDays: null };
+  // The ordering is left unchosen: applying a profile seeds what to look FOR,
+  // and says nothing about what order to look in.
+  return { q: '', sort: null, facets, skillsExclude, postedWithinDays: null };
 }
