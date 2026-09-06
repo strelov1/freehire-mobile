@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppSymbol } from '@/components/AppSymbol';
 import { useAuth } from '@/lib/authStore';
 import { getColors, Radius, Space } from '@/constants/freehire';
-import { facetValueLabel, formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/format';
 import { planHeadline, planView } from '@/features/billing/model/planView';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '@/features/billing/storeLinks';
 import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
@@ -196,28 +196,11 @@ export default function ProfileScreen() {
               <AppSymbol name="chevron.right" size={16} tintColor={c.brandStrong} />
             </Pressable>
           </View>
-          {profile ? (
-            <View style={styles.profileBody}>
-              <View style={styles.chipRow}>
-                {profile.specializations.map((value) => (
-                  <View key={value} style={[styles.badge, { backgroundColor: c.brandMuted }]}>
-                    <Text style={[styles.badgeText, styles.chipText, { color: c.brandStrong }]}>
-                      {facetValueLabel('category', value)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-              <View style={styles.chipRow}>
-                {profile.skills.map((skill) => (
-                  <View key={skill} style={[styles.badge, { backgroundColor: c.muted }]}>
-                    <Text style={[styles.badgeText, styles.chipText, { color: c.foreground }]}>
-                      {skill}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ) : null}
+          {/* The chips themselves are not listed here. A filled-in profile runs to
+              dozens of skills, which filled half this screen with a list nobody
+              scrolls a settings tab to read — and every one of them is a tap away
+              in the editor, where they can also be changed. The counts above say
+              what this screen needs to say. */}
         </View>
 
         {/* Plan. Information you tap into rather than an action on the session, so it sits
@@ -405,17 +388,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-  },
-  profileBody: {
-    gap: Space.sm,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  chipText: {
-    textTransform: 'none',
   },
   locationLine: {
     fontSize: 13,
