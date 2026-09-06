@@ -51,3 +51,7 @@ example
 # Agent scratch directory
 .agents/
 
+
+# Git worktrees checked out inside the repo (the .claude/ ones are ignored
+# above). Not ours to commit, and jest would otherwise run their tests too.
+.worktrees/

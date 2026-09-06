@@ -1,11 +1,17 @@
 import {
   activeFilterCount,
   cycleSkill,
+  defaultSortFor,
+  effectiveSort,
   emptyFilters,
   filtersFromProfile,
   filtersToQuery,
+  matchSortNeedsSkills,
+  selectedSortFor,
   setPostedWithin,
   setQuery,
+  setSort,
+  sortOptionsFor,
   toggleValue,
   type JobFilters,
 } from './jobFilters';
@@ -33,6 +39,7 @@ describe('filtersToQuery', () => {
   it('orders q, then facets, then posted_within_days', () => {
     const f: JobFilters = {
       q: 'designer',
+      sort: null,
       facets: { work_mode: ['remote'] },
       skillsExclude: [],
       postedWithinDays: 30,
@@ -64,6 +71,7 @@ describe('activeFilterCount', () => {
   it('sums every selected facet value plus posted-within', () => {
     const f: JobFilters = {
       q: '',
+      sort: null,
       facets: { work_mode: ['remote', 'hybrid'], seniority: ['senior'] },
       skillsExclude: [],
       postedWithinDays: 7,
@@ -251,5 +259,103 @@ describe('setters', () => {
   it('setPostedWithin sets and clears', () => {
     expect(setPostedWithin(emptyFilters, 14).postedWithinDays).toBe(14);
     expect(setPostedWithin({ ...emptyFilters, postedWithinDays: 14 }, null).postedWithinDays).toBeNull();
+  });
+});
+
+describe('sort', () => {
+  const withText: JobFilters = { ...emptyFilters, q: 'go' };
+
+  describe('sortOptionsFor', () => {
+    it('offers relevance only when there is text to rank against', () => {
+      expect(sortOptionsFor('go').map((o) => o.value)).toEqual([
+        'relevance',
+        'newest',
+        'views',
+        'match',
+      ]);
+      expect(sortOptionsFor('').map((o) => o.value)).toEqual(['newest', 'views', 'match']);
+      expect(sortOptionsFor('   ').map((o) => o.value)).toEqual(['newest', 'views', 'match']);
+    });
+
+    it('offers best match to everyone, profile or not', () => {
+      // Hiding it would hide the reason to fill in a profile from exactly the
+      // people who have not.
+      expect(sortOptionsFor('').map((o) => o.value)).toContain('match');
+    });
+  });
+
+  describe('defaultSortFor', () => {
+    it('mirrors what the endpoint does with no sort parameter', () => {
+      // Relevance under query text, freshest first without it — see searchSort
+      // in hire's internal/api/handler/search.go.
+      expect(defaultSortFor('go')).toBe('relevance');
+      expect(defaultSortFor('')).toBe('newest');
+      expect(defaultSortFor('  ')).toBe('newest');
+    });
+  });
+
+  describe('effectiveSort', () => {
+    it('mirrors the server default when nothing is chosen', () => {
+      expect(effectiveSort(emptyFilters)).toBe('newest');
+      expect(effectiveSort(withText)).toBe('relevance');
+    });
+
+    it('collapses relevance once the query is cleared', () => {
+      expect(effectiveSort({ ...emptyFilters, sort: 'relevance' })).toBe('newest');
+    });
+
+    it('keeps every other chosen ordering when the query is cleared', () => {
+      // views ranks by a stored figure, so an emptied query leaves it servable —
+      // discarding the reader's choice there would be a bug, not a fallback.
+      expect(effectiveSort({ ...emptyFilters, sort: 'views' })).toBe('views');
+      expect(effectiveSort({ ...emptyFilters, sort: 'match' })).toBe('match');
+    });
+  });
+
+  describe('filtersToQuery', () => {
+    it('writes nothing for the default ordering', () => {
+      expect(filtersToQuery(emptyFilters)).toBe('');
+      expect(filtersToQuery(withText)).toBe('q=go');
+    });
+
+    it('writes nothing for relevance, which the endpoint spells as no parameter', () => {
+      expect(filtersToQuery({ ...withText, sort: 'relevance' })).toBe('q=go');
+    });
+
+    it('serializes the orderings that do have a wire value', () => {
+      expect(filtersToQuery({ ...emptyFilters, sort: 'views' })).toBe('sort=view_count');
+      expect(filtersToQuery({ ...emptyFilters, sort: 'match' })).toBe('sort=match');
+      expect(filtersToQuery({ ...withText, sort: 'newest' })).toBe('q=go&sort=posted_at');
+    });
+  });
+
+  describe('selectedSortFor', () => {
+    it('names what the server will actually serve when the chosen one is not offered', () => {
+      // A reader who picked relevance and then cleared the box: the control must
+      // not sit blank over a live ordering.
+      expect(selectedSortFor({ ...emptyFilters, sort: 'relevance' })).toBe('newest');
+    });
+
+    it('names the chosen ordering when it is still on offer', () => {
+      expect(selectedSortFor({ ...withText, sort: 'views' })).toBe('views');
+    });
+  });
+
+  describe('matchSortNeedsSkills', () => {
+    it('is true only when match is in force with nothing to rank against', () => {
+      expect(matchSortNeedsSkills({ ...emptyFilters, sort: 'match' }, false)).toBe(true);
+      expect(matchSortNeedsSkills({ ...emptyFilters, sort: 'match' }, true)).toBe(false);
+      expect(matchSortNeedsSkills({ ...emptyFilters, sort: 'views' }, false)).toBe(false);
+      expect(matchSortNeedsSkills(emptyFilters, false)).toBe(false);
+    });
+  });
+
+  describe('setSort', () => {
+    it('replaces the ordering and leaves the rest of the filters alone', () => {
+      const f = setSort({ ...withText, postedWithinDays: 7 }, 'views');
+      expect(f.sort).toBe('views');
+      expect(f.q).toBe('go');
+      expect(f.postedWithinDays).toBe(7);
+    });
   });
 });

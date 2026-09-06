@@ -50,7 +50,7 @@ export type Job = {
   description?: string | null; // raw HTML
   url?: string;
   source?: string;
-  reality?: Reality | null; // trust signal (object; detail endpoint only)
+  reality?: Reality | null; // trust signal — served by the search feed too, not just the detail read
   work_mode?: string | null; // top-level on the detail read (mirrors enrichment)
   regions?: string[];
   countries?: string[];

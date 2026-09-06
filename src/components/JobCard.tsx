@@ -7,11 +7,13 @@ import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/R
 
 import { AppSymbol } from '@/components/AppSymbol';
 import { CompanyLogo } from '@/components/CompanyLogo';
+import { RealityBadge } from '@/components/RealityBadge';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useAuth } from '@/lib/authStore';
 import { useDismissedJobs } from '@/lib/useDismissedJobs';
-import { blurb, cardTags, formatSalary, timeAgo } from '@/lib/format';
+import { blurb, cardTags, formatCount, formatSalary, timeAgo } from '@/lib/format';
 import { computeClientMatch, matchTeaser } from '@/lib/jobMatch';
+import { freshnessBadges } from '@/lib/reality';
 import type { Job } from '@/lib/types';
 import { useProfile } from '@/lib/useProfile';
 import { useSavedJobs } from '@/lib/useSavedJobs';
@@ -53,44 +55,27 @@ function SwipeAction({
 }
 
 /**
- * Wraps a strip of the card in the teaser's blur, or renders it plainly.
+ * The teaser's blur, laid over the strip it covers rather than wrapped around
+ * it.
  *
- * Two of these rather than one around both, because the salary sits between the
- * chips and the strip in the layout and must stay legible — blurring the whole
- * tail would put the pay behind the invitation.
+ * A wrapper was the first shape and it broke the layout: it rendered the strip's
+ * style on an outer view AND an inner one, so the inner copy became a flex item
+ * sizing to its content — and the match label, measured against that instead of
+ * the card, printed past the card's edge.
  *
- * Blurred, it is hidden from assistive technology and replaced by an invitation:
- * a screen reader read "87% match" would be told a figure about the user that
- * nobody computed, the blur that marks it as a tease existing only on screen.
+ * As a sibling it also keeps the figures hidden from assistive technology
+ * through the container's own props: a screen reader read "87% match" would be
+ * told a number about the user that nobody computed, the blur that marks it as
+ * a tease existing only on screen.
  */
-function Teased({
-  blurred,
-  scheme,
-  style,
-  children,
-}: {
-  blurred: boolean;
-  scheme: string | null | undefined;
-  style: object;
-  children: React.ReactNode;
-}) {
-  if (!blurred) return <View style={style}>{children}</View>;
-
+function TeaserBlur({ scheme }: { scheme: string | null | undefined }) {
   return (
-    <View
-      accessible
-      accessibilityLabel="Sign in to see how this job matches your skills"
-      importantForAccessibility="yes"
-      style={[style, styles.teased]}>
-      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={style}>
-        {children}
-      </View>
-      <BlurView
-        intensity={10}
-        tint={scheme === 'dark' ? 'dark' : 'light'}
-        style={StyleSheet.absoluteFill}
-      />
-    </View>
+    <BlurView
+      intensity={10}
+      tint={scheme === 'dark' ? 'dark' : 'light'}
+      pointerEvents="none"
+      style={StyleSheet.absoluteFill}
+    />
   );
 }
 
@@ -117,6 +102,13 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
   // Derived display strings — memoized so scrolling doesn't re-run the HTML strip.
   const posted = useMemo(() => timeAgo(job.posted_at), [job.posted_at]);
   const tags = useMemo(() => cardTags(job), [job]);
+  // The public view count, which the feed serves and the card used to drop. Zero
+  // renders nothing: "0 views" reads as a dead posting rather than a new one.
+  const views = job.view_count ?? 0;
+  const fresh = useMemo(
+    () => freshnessBadges(job.posted_at, job.reality, job.applied_count ?? 0, job.closed_at),
+    [job.posted_at, job.reality, job.applied_count, job.closed_at],
+  );
   const text = useMemo(() => blurb(job), [job]);
   const salary = useMemo(() => formatSalary(job.enrichment), [job.enrichment]);
   const skills = job.skills ?? [];
@@ -224,9 +216,25 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
               </Text>
             )}
           </View>
-          {posted ? (
-            <Text style={[styles.posted, { color: c.mutedForeground }]}>{posted}</Text>
-          ) : null}
+          {/* Views beside the timestamp, the rail the web puts them in. Sorting
+              by "Most viewed" without showing the figure it sorted on left the
+              order looking arbitrary. */}
+          <View style={styles.railEnd}>
+            {views > 0 ? (
+              <View
+                accessible
+                accessibilityLabel={`${views.toLocaleString('en-US')} views`}
+                style={styles.views}>
+                <AppSymbol name="eye" size={12} tintColor={c.mutedForeground} />
+                <Text style={[styles.posted, { color: c.mutedForeground }]}>
+                  {formatCount(views)}
+                </Text>
+              </View>
+            ) : null}
+            {posted ? (
+              <Text style={[styles.posted, { color: c.mutedForeground }]}>{posted}</Text>
+            ) : null}
+          </View>
         </View>
 
         {/* The title is the card's hero — a size up with tight leading. */}
@@ -234,9 +242,17 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
           {job.title}
         </Text>
 
-        {/* Signal row: quiet outline chips read as metadata, not decoration. */}
-        {tags.length > 0 ? (
+        {/* Signal row: the trust verdict first, then what is fresh about the
+            posting, then its stable facets — a warning that a posting may not be
+            real outranks a note that it is new. */}
+        {job.reality || fresh.length > 0 || tags.length > 0 ? (
           <View style={styles.chipRow}>
+            <RealityBadge reality={job.reality} postedAt={job.posted_at} />
+            {fresh.map((label) => (
+              <View key={label} style={[styles.chip, { backgroundColor: c.brandMuted, borderColor: c.brandMuted }]}>
+                <Text style={[styles.chipText, { color: c.brandStrong }]}>{label}</Text>
+              </View>
+            ))}
             {tags.map((tag) => (
               <View key={tag} style={[styles.chip, { borderColor: c.border }]}>
                 <Text style={[styles.chipText, { color: c.mutedForeground }]}>{tag}</Text>
@@ -258,7 +274,12 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
             job. */}
         {(shownSkills.length > 0 || salary) && (
           <View style={styles.tailRow}>
-            <Teased blurred={!!teaser} scheme={scheme} style={styles.skills}>
+            <View
+              style={[styles.skills, teaser && styles.teased]}
+              accessible={!!teaser}
+              accessibilityLabel={
+                teaser ? 'Sign in to see how this job matches your skills' : undefined
+              }>
               {shownSkills.map((skill) => {
                 const missing = isMissing(skill) === true;
                 return (
@@ -279,7 +300,8 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
                   +{extraSkills} skills
                 </Text>
               ) : null}
-            </Teased>
+              {teaser ? <TeaserBlur scheme={scheme} /> : null}
+            </View>
             {salary ? (
               <Text style={[styles.salary, { color: c.foreground }]}>{salary}</Text>
             ) : null}
@@ -291,14 +313,20 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
             label. A real match for a viewer with a profile; the blurred teaser
             for a locked one. */}
         {match ? (
-          <Teased blurred={!!teaser} scheme={scheme} style={styles.matchRow}>
+          <View
+            style={[styles.matchRow, teaser && styles.teased]}
+            accessible={!!teaser}
+            accessibilityLabel={
+              teaser ? 'Sign in to see how this job matches your skills' : undefined
+            }>
             <View style={[styles.matchTrack, { backgroundColor: c.destructiveMuted }]}>
               <View style={[styles.matchFill, { backgroundColor: c.brand, width: `${match.percent}%` }]} />
             </View>
-            <Text style={[styles.matchLabel, { color: c.mutedForeground }]}>
+            <Text numberOfLines={1} style={[styles.matchLabel, { color: c.mutedForeground }]}>
               {match.percent}% · {match.matched}/{match.total} skills
             </Text>
-          </Teased>
+            {teaser ? <TeaserBlur scheme={scheme} /> : null}
+          </View>
         ) : null}
       </Pressable>
     </Swipeable>
@@ -307,6 +335,13 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
 
 const styles = StyleSheet.create({
   card: {
+    // Full width of the list, explicitly. Swipeable wraps the card in a view of
+    // its own that sizes to content, so without this the card was as wide as its
+    // longest line — and the match strip, whose track is `flex: 1` against a
+    // fixed-width label, was measured against that instead of the screen. The
+    // label printed past the card's edge on exactly the cards whose text ran
+    // long.
+    width: '100%',
     borderWidth: 1,
     borderRadius: Radius.xl,
     padding: Space.lg,
@@ -331,6 +366,16 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 14,
     fontWeight: '500',
+  },
+  railEnd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space.sm,
+  },
+  views: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   posted: {
     fontSize: 12,
@@ -407,7 +452,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   matchTrack: {
+    // `minWidth: 0` so the track can actually give the label its width back. A
+    // flex child's default minimum is its content, which is what let the label
+    // overflow the card instead of the track shrinking under it.
     flex: 1,
+    minWidth: 0,
     height: 6,
     borderRadius: Radius.pill,
     overflow: 'hidden',
@@ -417,6 +466,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   matchLabel: {
+    // Fixed: the label states a figure, so the track beside it gives up the
+    // width instead. `numberOfLines={1}` on the element keeps a stray long
+    // value clipped rather than wrapping the row.
     flexShrink: 0,
     fontSize: 12,
     fontWeight: '500',

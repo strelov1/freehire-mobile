@@ -44,20 +44,26 @@ function render(item: Job = job) {
   return renderer;
 }
 
-/** The subtrees hidden from assistive technology — which is how the teaser
- *  marks its fabricated figures. */
-function hiddenSubtrees(renderer: ReactTestRenderer.ReactTestRenderer) {
-  return renderer.root.findAll((n) => n.props?.importantForAccessibility === 'no-hide-descendants');
+/** The strips the teaser has taken over: marked as one accessible element with
+ *  an invitation for its label, which is what stops a screen reader reading out
+ *  a fabricated percentage as the viewer's own. */
+function teasedStrips(renderer: ReactTestRenderer.ReactTestRenderer) {
+  return renderer.root.findAll(
+    (n) =>
+      n.props?.accessible === true &&
+      typeof n.props?.accessibilityLabel === 'string' &&
+      n.props.accessibilityLabel.startsWith('Sign in to see'),
+  );
 }
 
 function hasHiddenSubtree(renderer: ReactTestRenderer.ReactTestRenderer): boolean {
-  return hiddenSubtrees(renderer).length > 0;
+  return teasedStrips(renderer).length > 0;
 }
 
 /** Every string rendered INSIDE a hidden subtree, so a test can state what the
  *  blur covers and what it deliberately leaves out. */
 function hiddenText(renderer: ReactTestRenderer.ReactTestRenderer): string {
-  return hiddenSubtrees(renderer)
+  return teasedStrips(renderer)
     .flatMap((node) => node.findAllByType(Text))
     .map((node) =>
       React.Children.toArray(node.props.children)

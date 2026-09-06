@@ -53,3 +53,57 @@ export function postingContrast(reality: Reality, postedAt?: string | null): str
   const ago = timeAgo(postedAt);
   return ago ? `posting dated ${ago}` : '';
 }
+
+// --- Freshness badges -------------------------------------------------------
+
+/** Within this many days a posting still reads as new. */
+const NEW_DAYS = 7;
+/** …and within this many, with few enough applies, as worth being early to. */
+const EARLY_DAYS = 3;
+const EARLY_APPLIES = 3;
+
+function daysSince(iso?: string | null): number | null {
+  if (!iso) return null;
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return null;
+  return Math.floor((Date.now() - then) / 86_400_000);
+}
+
+/**
+ * The card's freshness badges: "New", and an invitation to be an early
+ * applicant. Ported from the web's `cardFreshnessBadges`, thresholds included.
+ *
+ * The gate is deliberately strict, and in three ways.
+ *
+ * A card with NO reality signal claims nothing. Without it there is no way to
+ * tell a genuinely fresh posting from one whose source rewrites its date on
+ * every crawl — and a card is the surface people scan fastest and least
+ * critically. An absent badge costs less than a false one.
+ *
+ * A posting the signal has classified as anything but fresh, or whose date it
+ * distrusts (`fake_freshness`), gets nothing either: those are precisely the
+ * dates that would otherwise print "New" on the oldest job in the catalogue.
+ *
+ * And a closed posting is never worth hurrying to, whatever its date says.
+ *
+ * `appliedCount` counts the signed-in users who marked this job applied HERE. It
+ * cannot see the employer's inbox, so being early is offered as an invitation
+ * rather than stated as a fact.
+ */
+export function freshnessBadges(
+  postedAt?: string | null,
+  reality?: Reality | null,
+  appliedCount = 0,
+  closedAt?: string | null,
+): string[] {
+  if (closedAt) return [];
+  if (!reality) return [];
+  if (reality.class !== 'fresh' || reality.fake_freshness) return [];
+
+  const days = daysSince(postedAt);
+  if (days === null || days > NEW_DAYS) return [];
+
+  const badges = ['New'];
+  if (days <= EARLY_DAYS && appliedCount <= EARLY_APPLIES) badges.push('Be an early applicant');
+  return badges;
+}

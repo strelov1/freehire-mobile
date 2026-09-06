@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import * as WebBrowser from 'expo-web-browser';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,6 +34,58 @@ function FactRow({ label, values, color }: { label: string; values: string[]; co
     <View style={styles.factRow}>
       <Text style={[styles.factLabel, { color }]}>{label}</Text>
       <Text style={[styles.factValue, { color }]}>{values.join(', ')}</Text>
+    </View>
+  );
+}
+
+/** How much of the description shows before it has to be asked for. Three, as
+ *  the web clamps it. */
+const COLLAPSED_LINES = 3;
+
+/**
+ * The company's own summary, collapsed to a few lines and expandable — the port
+ * of the web's CompanyAbout. Some of these run to a dozen paragraphs and pushed
+ * the open roles, which is what the visit is for, off the bottom of the screen.
+ *
+ * The toggle appears only when the text ACTUALLY overflows. The web measures
+ * that (scrollHeight against the clamped clientHeight); React Native has no such
+ * pair, so the same answer comes from laying the full text out once, invisibly
+ * and outside the flow, and counting the lines it wanted. Guessing from the
+ * character count would put a "Show more" under a summary with nothing more to
+ * show.
+ */
+function About({ text, colors: c }: { text: string; colors: ReturnType<typeof getColors> }) {
+  const [lines, setLines] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const clampable = (lines ?? 0) > COLLAPSED_LINES;
+
+  return (
+    <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+      <Text style={[styles.aboutLabel, { color: c.mutedForeground }]}>About</Text>
+      <Text
+        numberOfLines={expanded ? undefined : COLLAPSED_LINES}
+        style={[styles.description, { color: c.foreground }]}>
+        {text}
+      </Text>
+      {/* The measurer: same text, same type styles, no clamp, no space taken and
+          nothing to see. Rendered until it has answered, then dropped. */}
+      {lines === null ? (
+        <Text
+          aria-hidden
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          onTextLayout={(e) => setLines(e.nativeEvent.lines.length)}
+          style={[styles.description, styles.measure]}>
+          {text}
+        </Text>
+      ) : null}
+      {clampable ? (
+        <Pressable onPress={() => setExpanded((v) => !v)} hitSlop={8}>
+          <Text style={[styles.link, { color: c.brandStrong }]}>
+            {expanded ? 'Show less' : 'Show more'}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -97,20 +150,21 @@ export default function CompanyScreen() {
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={[styles.fill, { backgroundColor: c.background }]}>
+      {/* The company rail sits inline with the back chevron, the shape the job
+          screen uses for the same pair. A 48px logo over its own name cost a
+          fifth of the screen to say what the row below already says, and pushed
+          the roles — the reason for the visit — under the fold. */}
       <View style={styles.topBar}>
         <BackButton color={c.foreground} />
+        <CompanyLogo name={company.name} size={32} />
+        <Text numberOfLines={1} style={[styles.name, { color: c.foreground }]}>
+          {company.name}
+        </Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Header: logo, name, tagline, badges. */}
-        <View style={styles.header}>
-          <CompanyLogo name={company.name} size={48} />
-          <View style={styles.headerText}>
-            <Text style={[styles.name, { color: c.foreground }]}>{company.name}</Text>
-            {company.tagline ? (
-              <Text style={[styles.tagline, { color: c.mutedForeground }]}>{company.tagline}</Text>
-            ) : null}
-          </View>
-        </View>
+        {company.tagline ? (
+          <Text style={[styles.tagline, { color: c.mutedForeground }]}>{company.tagline}</Text>
+        ) : null}
 
         {(info?.top_company || info?.is_hiring) && (
           <View style={styles.badgeRow}>
@@ -127,9 +181,7 @@ export default function CompanyScreen() {
           </View>
         )}
 
-        {info?.description ? (
-          <Text style={[styles.description, { color: c.foreground }]}>{info.description}</Text>
-        ) : null}
+        {info?.description ? <About text={info.description} colors={c} /> : null}
 
         {facts.length > 0 ? (
           <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
@@ -190,6 +242,7 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: Space.sm,
     paddingHorizontal: Space.sm,
     paddingVertical: Space.xs,
   },
@@ -204,19 +257,11 @@ const styles = StyleSheet.create({
     paddingBottom: Space.xl,
     gap: Space.md,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Space.md,
-  },
-  headerText: {
-    flex: 1,
-    gap: Space.xs,
-  },
   name: {
-    fontSize: 22,
+    flexShrink: 1,
+    fontSize: 17,
     fontWeight: '700',
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   tagline: {
     fontSize: 14,
@@ -239,6 +284,19 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 14,
     lineHeight: 21,
+  },
+  aboutLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  /** Out of the flow and invisible: it exists only to be measured. */
+  measure: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    opacity: 0,
   },
   card: {
     borderWidth: 1,

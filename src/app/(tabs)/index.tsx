@@ -15,20 +15,30 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppSymbol } from '@/components/AppSymbol';
 import { JobCard } from '@/components/JobCard';
+import { SortMenu } from '@/components/SortMenu';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useDismissedJobs } from '@/lib/useDismissedJobs';
 import { useFilters } from '@/lib/filterStore';
-import { activeFilterCount, emptyFilters } from '@/lib/jobFilters';
+import {
+  activeFilterCount,
+  emptyFilters,
+  matchSortNeedsSkills,
+  selectedSortFor,
+  setSort,
+  sortOptionsFor,
+} from '@/lib/jobFilters';
 import { useTabBarClearance } from '@/lib/tabBarVisibility';
 import { useTabBarVisibility } from '@/lib/tabBarStore';
 import type { Job } from '@/lib/types';
 import { useJobSearch } from '@/lib/useJobSearch';
+import { useProfile } from '@/lib/useProfile';
 
 export default function FeedScreen() {
   const tabBarClearance = useTabBarClearance();
   const c = getColors(useColorScheme());
   const { filters, appliedQuery, setQuery, apply } = useFilters();
   const { isDismissed } = useDismissedJobs();
+  const { data: profile } = useProfile();
   const { reportScrollY } = useTabBarVisibility();
   const {
     data,
@@ -52,6 +62,12 @@ export default function FeedScreen() {
   );
   const total = data?.pages[0]?.meta.total ?? 0;
   const activeCount = activeFilterCount(filters);
+
+  // The orderings on offer and the one the control shows — both pure, both in
+  // jobFilters so they are testable without rendering this screen.
+  const sortOptions = sortOptionsFor(filters.q);
+  const selectedSort = selectedSortFor(filters);
+  const needsSkills = matchSortNeedsSkills(filters, (profile?.skills?.length ?? 0) > 0);
   const selectedRegions = filters.facets.regions ?? [];
   const regionTint = selectedRegions.length > 0 ? c.brandStrong : c.mutedForeground;
 
@@ -113,9 +129,28 @@ export default function FeedScreen() {
           ) : null}
         </Pressable>
       </View>
-      {total > 0 ? (
+      {/* The count and the ordering on one line, the web's toolbar in miniature.
+          Ordering is not filtering: it applies on the tap rather than behind the
+          Filters modal's "Show N jobs" button, because it is changed often and
+          its whole point is seeing the effect. */}
+      <View style={styles.toolbar}>
         <Text style={[styles.count, { color: c.mutedForeground }]}>
-          {total.toLocaleString('en-US')} jobs
+          {total > 0 ? `${total.toLocaleString('en-US')} jobs` : ''}
+        </Text>
+        <SortMenu
+          options={sortOptions}
+          selected={selectedSort}
+          onSelect={(sort) => apply(setSort(filters, sort))}
+        />
+      </View>
+
+      {/* Best match is offered to everyone, so it can be chosen by someone with
+          nothing to rank against. The server quietly serves newest in that case;
+          said out loud, that reads as a profile to fill in rather than as a sort
+          that is broken. */}
+      {needsSkills ? (
+        <Text style={[styles.sortNotice, { color: c.mutedForeground }]}>
+          Best match ranks against your profile skills — add some to use it.
         </Text>
       ) : null}
     </View>
@@ -238,6 +273,20 @@ const styles = StyleSheet.create({
     marginRight: Space.xs,
     borderRightWidth: 1,
   },
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Space.md,
+    paddingHorizontal: Space.lg,
+    paddingBottom: Space.sm,
+  },
+  sortNotice: {
+    fontSize: 12,
+    lineHeight: 17,
+    paddingHorizontal: Space.lg,
+    paddingBottom: Space.sm,
+  },
   count: {
     fontSize: 13,
     fontVariant: ['tabular-nums'],
@@ -257,7 +306,8 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: Space.lg,
     paddingTop: Space.sm,
-    // Clears the custom bottom tab bar so the last card isn't hidden behind it.
+    // The bottom clearance is applied inline from `useTabBarClearance()`: the
+    // safe-area inset it includes is only known at runtime.
   },
   footer: {
     paddingVertical: Space.lg,
