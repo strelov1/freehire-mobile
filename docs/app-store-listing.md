@@ -144,10 +144,33 @@ and Indeed, and that is where the comparison shoppers are.
 
 ## Age rating
 
-4+ on every axis. The app has no user-generated content, no ads, no gambling,
-no unrestricted web. One caveat: job descriptions are third-party text opened in
-an in-app browser, which the questionnaire may treat as "web content" — answer
-that honestly rather than optimistically.
+**Set.** 4+ on every axis: no user-generated content, no ads, no gambling, no
+in-app messaging.
+
+Two answers were judgement calls rather than facts, and both are worth
+re-reading if the app ever gains a feature near them:
+
+- **Unrestricted web access: no.** A job description opens in
+  `SFSafariViewController` at a fixed URL with no address bar. That is a reader,
+  not a browser. If an in-app link ever becomes navigable — a web view the user
+  can type into, or one that follows arbitrary outbound links — this answer
+  changes, and it raises the rating.
+- **User-generated content: no.** The user writes skills, notes and application
+  stages, but only ever for themselves. Nothing a user types is shown to another
+  user, which is what the question is actually asking about.
+
+## Subscriptions
+
+Two auto-renewing subscriptions in the group **freehire Pro**: `pro.monthly` at
+$5.99 and `pro.annual` at $49.99, across 175 territories.
+
+One trap, because it cost an hour: a subscription sits at `MISSING_METADATA`
+even with a name, a description, a price and a review screenshot, and App Store
+Connect does not say which field is missing. The missing one was
+**`subscriptionAvailability`** — the territory list, which is a separate
+resource from the prices and is not created by setting them. `POST
+/v1/subscriptionAvailabilities` with `availableInNewTerritories: true` and the
+full territory list flipped both to `READY_TO_SUBMIT` immediately.
 
 ## Demo account for review
 
@@ -155,16 +178,28 @@ that honestly rather than optimistically.
 sign-in, and a reviewer who cannot sign in sees an app that appears to do
 nothing.
 
-The account handed to review should have:
+`appreview@freehire.me` exists on production and is already set up. Its password
+is deliberately **not** in this repo — it lives in the password manager and is
+passed to the script below as an argument.
 
-- a saved profile with at least one specialization and a realistic skill set —
-  otherwise the reviewer sees the "add skills" state rather than the feature the
-  listing describes
-- two or three tracked applications at different stages, so the Tracker tab is
-  not empty
+What it holds, and why each part is there:
 
-Put it in the Review Notes as `email / password`, and add a line saying the
-match figures only appear once the profile has skills.
+- twelve skills across three specializations at senior/lead, so the reviewer
+  meets a real match figure rather than the "add skills" empty state
+- two avoided skills, so the avoid gesture has something to show
+- five tracked roles at Saved, Applied, Interview and Offer, so the Applications
+  tab is not an empty list
+
+Fill in the review details with:
+
+```sh
+ASC_KEY_ID=A3WPL9J4BH ASC_KEY=~/Downloads/AuthKey_A3WPL9J4BH.p8 \
+ASC_ISSUER=1880749a-1238-40bc-ac7e-e072c446b056 \
+python3 scripts/asc-review-details.py +CC... 'the-password'
+```
+
+The contact phone is the one field the API will not accept a placeholder for,
+which is why it is an argument and not a constant.
 
 ---
 
