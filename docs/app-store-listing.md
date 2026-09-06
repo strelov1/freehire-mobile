@@ -205,16 +205,41 @@ which is why it is an argument and not a constant.
 
 Everything the API can set is set: build attached, description, keywords,
 promotional text, support and marketing URLs, six screenshots, categories,
-content rights, age rating, price schedule, and both subscriptions at
-`READY_TO_SUBMIT`.
+content rights, age rating, price schedule, review details, and both
+subscriptions at `READY_TO_SUBMIT`.
 
-Two things remain, and neither can be scripted:
+### The fields that are required but invisible
 
-1. **The contact phone**, via `scripts/asc-review-details.py`.
-2. **The App Privacy questionnaire**, in the web UI. `appDataUsages` and every
-   neighbouring path return 404 — there is no API for it at any version. The
-   answers are derived per-endpoint in [app-store-privacy.md](app-store-privacy.md)
-   and must match the privacy manifest, because Apple cross-checks them.
+Apple's answer to a version it will not review is "This resource cannot be
+reviewed, please check associated errors" — and the associated errors are not
+served by any endpoint. So they have to be found by elimination. Four were
+unset, none of them mentioned anywhere in the submission flow:
+
+| Field | Where it lives | Why it is easy to miss |
+|---|---|---|
+| Primary/secondary category | `appInfos` relationships | Not part of the version, so filling the version in full never prompts for it |
+| Content rights declaration | `apps` attributes | A single app-level enum with no default |
+| Territory availability | `POST /v2/appAvailabilities` | Separate from the price schedule; having prices in 175 territories does not make the app available in them |
+| Privacy policy URL | `appInfoLocalizations` | Sits next to the app *name*, not next to the support and marketing URLs on the version, where you would look for it |
+
+The last one shares a resource with the App Store name and subtitle, which were
+also still at their placeholder (`freehire-mobile`) — the version localization
+holds the description and the URLs, the app-info localization holds the name,
+the subtitle and the privacy policy, and only the first of the two looks like
+"the listing".
+
+Creating the availability needs JSON:API inline creation: each
+`territoryAvailabilities` entry in `included` must carry a **local** id of the
+form `${t0}`, referenced by the same string from `relationships`. Passing the
+territory code as the id fails with "invalid format".
+
+### What is left
+
+**The App Privacy questionnaire**, in the web UI. There is no API for it:
+`appDataUsages`, `appPrivacyDetails`, `dataUsages`, `appPrivacyConfiguration`
+and the v2 spellings all 404. The answers are derived per-endpoint in
+[app-store-privacy.md](app-store-privacy.md) and must match the privacy manifest
+in `app.config.ts`, because Apple cross-checks the two.
 
 Then:
 
