@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppSymbol } from '@/components/AppSymbol';
 import { CompanyCard } from '@/components/CompanyCard';
 import { getColors, Radius, Space } from '@/constants/freehire';
-import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
+import { useTabBarClearance } from '@/lib/tabBarVisibility';
 import type { CompanyListItem } from '@/lib/types';
 import { useCompanySearch } from '@/lib/useCompanySearch';
 import { useDebounced } from '@/lib/useDebounced';
@@ -35,6 +35,7 @@ const SEARCH_DEBOUNCE_MS = 300;
  * open roles first; the screen offers no sort control.
  */
 export default function CompaniesScreen() {
+  const tabBarClearance = useTabBarClearance();
   const c = getColors(useColorScheme());
   const [query, setQuery] = useState('');
   // Trimmed BEFORE the debounce, so the query key and the request agree on what
@@ -142,7 +143,7 @@ export default function CompaniesScreen() {
         data={companies}
         keyExtractor={(item) => item.slug}
         renderItem={({ item }) => <CompanyCard company={item} />}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: tabBarClearance }]}
         ItemSeparatorComponent={() => <View style={{ height: Space.md }} />}
         keyboardDismissMode="on-drag"
         onEndReachedThreshold={0.6}
@@ -207,7 +208,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Space.lg,
     paddingTop: Space.sm,
     // Clears the custom bottom tab bar, same as the feed's list.
-    paddingBottom: Space.xl + TAB_BAR_HEIGHT,
   },
   footer: {
     paddingVertical: Space.lg,

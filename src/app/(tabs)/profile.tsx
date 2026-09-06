@@ -18,7 +18,7 @@ import { getColors, Radius, Space } from '@/constants/freehire';
 import { facetValueLabel, formatDate } from '@/lib/format';
 import { planHeadline, planView } from '@/features/billing/model/planView';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '@/features/billing/storeLinks';
-import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
+import { useTabBarClearance } from '@/lib/tabBarVisibility';
 import { usePlan } from '@/lib/usePlan';
 import { useProfile } from '@/lib/useProfile';
 
@@ -31,6 +31,7 @@ import { useProfile } from '@/lib/useProfile';
  * prompt instead of redirecting.
  */
 export default function ProfileScreen() {
+  const tabBarClearance = useTabBarClearance();
   const c = getColors(useColorScheme());
   const { user, state, signOut, logoutAll, recordReturnIntent, retryBootstrap } = useAuth();
   const { data: plan, isError: planError } = usePlan();
@@ -148,7 +149,7 @@ export default function ProfileScreen() {
         <Text style={[styles.title, { color: c.foreground }]}>Profile</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView contentContainerStyle={[styles.body, { paddingBottom: tabBarClearance }]}>
         <View style={styles.identity}>
           <AppSymbol name="person.crop.circle.fill" size={56} tintColor={c.brandStrong} />
           <Text style={[styles.email, { color: c.foreground }]} numberOfLines={1}>
@@ -367,10 +368,6 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: Space.lg,
     paddingTop: Space.xl,
-    // The tab bar floats over the scroll, so the clearance belongs to the scrolling content:
-    // whatever ends up last has to be reachable, and what ends up last changes with the
-    // account's state.
-    paddingBottom: Space.xl + TAB_BAR_HEIGHT,
     gap: Space.xl,
   },
   identity: {
