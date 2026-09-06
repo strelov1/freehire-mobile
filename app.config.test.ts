@@ -1,4 +1,4 @@
-import { normalizeApiBase, normalizeRevenueCatKeys } from './app.config';
+import appConfig, { normalizeApiBase, normalizeRevenueCatKeys } from './app.config';
 
 describe('release API configuration', () => {
   it('normalizes a valid origin', () => {
@@ -71,5 +71,64 @@ describe('release purchase configuration', () => {
   it('rejects a malformed key in every profile', () => {
     expect(() => normalizeRevenueCatKeys('sk_oops', undefined, false)).toThrow();
     expect(() => normalizeRevenueCatKeys('sk_oops', undefined, true)).toThrow();
+  });
+});
+
+describe('the iOS privacy manifest', () => {
+  const manifest = () =>
+    appConfig({
+      config: {} as never,
+      projectRoot: __dirname,
+      staticConfigPath: null,
+      packageJsonPath: `${__dirname}/package.json`,
+    }).ios?.privacyManifests as
+      | {
+          NSPrivacyTracking?: boolean;
+          NSPrivacyAccessedAPITypes?: { NSPrivacyAccessedAPIType: string }[];
+          NSPrivacyCollectedDataTypes?: {
+            NSPrivacyCollectedDataType: string;
+            NSPrivacyCollectedDataTypeLinked: boolean;
+            NSPrivacyCollectedDataTypeTracking: boolean;
+          }[];
+        }
+      | undefined;
+
+  beforeAll(() => {
+    process.env.EXPO_PUBLIC_API_BASE = 'https://freehire.me';
+  });
+
+  it('declares every category of data the app actually sends', () => {
+    // An empty list means "this app collects nothing", which Apple cross-checks
+    // against the App Privacy answers. See docs/app-store-privacy.md for where
+    // each of these comes from in `lib/api.ts`.
+    expect(manifest()?.NSPrivacyCollectedDataTypes?.map((d) => d.NSPrivacyCollectedDataType)).toEqual([
+      'NSPrivacyCollectedDataTypeEmailAddress',
+      'NSPrivacyCollectedDataTypeOtherUserContent',
+      'NSPrivacyCollectedDataTypePurchaseHistory',
+      'NSPrivacyCollectedDataTypeDeviceID',
+      'NSPrivacyCollectedDataTypeProductInteraction',
+    ]);
+  });
+
+  it('keeps the required-reason API declarations Expo’s modules need', () => {
+    // Declaring `privacyManifests` REPLACES the generated manifest rather than
+    // merging into it, so omitting these empties the list — and a build with no
+    // reason for a required-reason API is rejected. This test is here because
+    // that regression is invisible in the config and only shows up in the
+    // generated file.
+    expect(manifest()?.NSPrivacyAccessedAPITypes?.map((a) => a.NSPrivacyAccessedAPIType)).toEqual([
+      'NSPrivacyAccessedAPICategoryFileTimestamp',
+      'NSPrivacyAccessedAPICategoryUserDefaults',
+      'NSPrivacyAccessedAPICategorySystemBootTime',
+    ]);
+  });
+
+  it('collects nothing for tracking', () => {
+    // No ad network, no data broker, no ATT prompt to justify.
+    expect(manifest()?.NSPrivacyTracking).toBe(false);
+    for (const entry of manifest()?.NSPrivacyCollectedDataTypes ?? []) {
+      expect(entry.NSPrivacyCollectedDataTypeTracking).toBe(false);
+      expect(entry.NSPrivacyCollectedDataTypeLinked).toBe(true);
+    }
   });
 });

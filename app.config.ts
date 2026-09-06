@@ -5,6 +5,23 @@ import { normalizeRevenueCatKeys } from './revenueCatKeys';
 
 export { DEFAULT_DEVELOPMENT_API_BASE, normalizeApiBase, normalizeRevenueCatKeys };
 
+/**
+ * One entry in the privacy manifest's collected-data list.
+ *
+ * Every type this app declares answers the remaining three questions the same
+ * way — linked to the user, not used for tracking, collected to make the app
+ * work — so they are stated once here rather than five times below, where the
+ * one that mattered would be the easiest to get wrong by copying.
+ */
+function collected(type: string) {
+  return {
+    NSPrivacyCollectedDataType: type,
+    NSPrivacyCollectedDataTypeLinked: true,
+    NSPrivacyCollectedDataTypeTracking: false,
+    NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+  };
+}
+
 export default ({ config }: ConfigContext): ExpoConfig => {
   const profile = process.env.EAS_BUILD_PROFILE ?? 'development';
   const allowLocalHttp = profile === 'development';
@@ -75,6 +92,62 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         ...config.ios?.infoPlist,
+      },
+      // What the binary tells Apple it collects, which must agree with the App
+      // Privacy answers in App Store Connect — Apple cross-checks them, and a
+      // manifest claiming less than the questionnaire is a rejection.
+      //
+      // Without this the generated manifest carries an EMPTY
+      // NSPrivacyCollectedDataTypes, i.e. "this app collects nothing", while the
+      // app sends an email address, a profile, purchase history and a push
+      // token. The API-access reasons Expo's own modules declare (file
+      // timestamp, user defaults, boot time) are merged in by prebuild and are
+      // not restated here.
+      //
+      // Every entry is linked to the user and none is used for tracking: nothing
+      // goes to an ad network or a data broker, and there is no ATT prompt
+      // because there is nothing to ask about. See docs/app-store-privacy.md for
+      // the per-endpoint derivation.
+      privacyManifests: {
+        NSPrivacyTracking: false,
+        // Restated, not inherited: declaring `privacyManifests` REPLACES the
+        // generated manifest rather than merging into it, and leaving these out
+        // emptied the required-reason API list Expo's own modules need — which
+        // Apple rejects a build for, so the fix would have been worse than the
+        // problem. The reason codes are Apple's:
+        //   C617.1 — file timestamps of files the app itself created
+        //   CA92.1 — user defaults, for this app's own data
+        //   35F9.1 — boot time, to measure elapsed time inside the app
+        NSPrivacyAccessedAPITypes: [
+          {
+            NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryFileTimestamp',
+            NSPrivacyAccessedAPITypeReasons: ['C617.1'],
+          },
+          {
+            NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryUserDefaults',
+            NSPrivacyAccessedAPITypeReasons: ['CA92.1'],
+          },
+          {
+            NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategorySystemBootTime',
+            NSPrivacyAccessedAPITypeReasons: ['35F9.1'],
+          },
+        ],
+        NSPrivacyCollectedDataTypes: [
+          // Sign-up, sign-in, and the OAuth providers.
+          collected('NSPrivacyCollectedDataTypeEmailAddress'),
+          // The profile the match is computed from — specializations, skills,
+          // avoided skills, location preferences — plus saved, hidden and
+          // tracked jobs with their stages and notes. Apple has no type for "a
+          // profile", and points at OtherUserContent for content a user creates
+          // in the app.
+          collected('NSPrivacyCollectedDataTypeOtherUserContent'),
+          // RevenueCat, for the Pro subscription.
+          collected('NSPrivacyCollectedDataTypePurchaseHistory'),
+          // The push token, and only once notifications are allowed.
+          collected('NSPrivacyCollectedDataTypeDeviceID'),
+          // A job view, which is what the public view count on a card is made of.
+          collected('NSPrivacyCollectedDataTypeProductInteraction'),
+        ],
       },
     },
     android: {
