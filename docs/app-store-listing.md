@@ -212,7 +212,7 @@ subscriptions at `READY_TO_SUBMIT`.
 
 Apple's answer to a version it will not review is "This resource cannot be
 reviewed, please check associated errors" — and the associated errors are not
-served by any endpoint. So they have to be found by elimination. Four were
+served by any endpoint. So they have to be found by elimination. Six were
 unset, none of them mentioned anywhere in the submission flow:
 
 | Field | Where it lives | Why it is easy to miss |
@@ -221,6 +221,8 @@ unset, none of them mentioned anywhere in the submission flow:
 | Content rights declaration | `apps` attributes | A single app-level enum with no default |
 | Territory availability | `POST /v2/appAvailabilities` | Separate from the price schedule; having prices in 175 territories does not make the app available in them |
 | Privacy policy URL | `appInfoLocalizations` | Sits next to the app *name*, not next to the support and marketing URLs on the version, where you would look for it |
+| `usesIdfa` | `appStoreVersions` attributes | The advertising-identifier declaration. `null` means unanswered, and "we don't use it" still has to be said out loud as `false` |
+| `copyright` | `appStoreVersions` attributes | No default, and nothing in the flow points at it |
 
 The last one shares a resource with the App Store name and subtitle, which were
 also still at their placeholder (`freehire-mobile`) — the version localization
