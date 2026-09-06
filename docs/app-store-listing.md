@@ -212,8 +212,8 @@ subscriptions at `READY_TO_SUBMIT`.
 
 Apple's answer to a version it will not review is "This resource cannot be
 reviewed, please check associated errors" — and the associated errors are not
-served by any endpoint. So they have to be found by elimination. Six were
-unset, none of them mentioned anywhere in the submission flow:
+served by any endpoint. So they have to be found by elimination. Seven were unset, none of them mentioned anywhere in the
+submission flow:
 
 | Field | Where it lives | Why it is easy to miss |
 |---|---|---|
@@ -223,6 +223,7 @@ unset, none of them mentioned anywhere in the submission flow:
 | Privacy policy URL | `appInfoLocalizations` | Sits next to the app *name*, not next to the support and marketing URLs on the version, where you would look for it |
 | `usesIdfa` | `appStoreVersions` attributes | The advertising-identifier declaration. `null` means unanswered, and "we don't use it" still has to be said out loud as `false` |
 | `copyright` | `appStoreVersions` attributes | No default, and nothing in the flow points at it |
+| Price tier | `POST /v1/appPriceSchedules` | A schedule already existed with a base territory and no price in it, so every check for "is pricing set up" answered yes |
 
 The last one shares a resource with the App Store name and subtitle, which were
 also still at their placeholder (`freehire-mobile`) — the version localization
@@ -233,7 +234,14 @@ the subtitle and the privacy policy, and only the first of the two looks like
 Creating the availability needs JSON:API inline creation: each
 `territoryAvailabilities` entry in `included` must carry a **local** id of the
 form `${t0}`, referenced by the same string from `relationships`. Passing the
-territory code as the id fails with "invalid format".
+territory code as the id fails with "invalid format". The price schedule is
+created the same way, with one `appPrices` entry pointing at a price point —
+free is the point whose `customerPrice` is the string `0.0`, not `0.00`.
+
+A faster route than elimination, found late: the **Add for Review** button in
+the web UI lists the missing items by name. The API has no equivalent, so when
+`reviewSubmissionItems` refuses a version, press that button and read the list
+rather than guessing.
 
 ### What is left
 
