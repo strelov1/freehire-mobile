@@ -24,6 +24,17 @@ only", which was never true of the search feed.
 - **The company screen's header shrinks** into its back rail, matching the job screen. A 48px logo
   above its own name spent a fifth of the screen restating the row below and pushed the open roles —
   the reason for the visit — under the fold.
+- **The company description collapses to three lines**, expandable, as the web's CompanyAbout does.
+  Some of these summaries run a dozen paragraphs and filled the whole screen. The toggle appears
+  only when the text actually overflows — measured, not guessed from a character count.
+
+## Bug fixed on the way
+
+The match strip's label printed past the card's right edge on cards whose text ran long. The blur
+wrapper introduced with the teaser rendered the strip's style on an outer view AND an inner one, so
+the inner copy sized to its content and the label was measured against that rather than the card.
+The blur is now a sibling laid over the strip rather than a box around it, which also removes a
+whole level of nesting.
 
 ## Capabilities
 
