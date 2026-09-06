@@ -19,12 +19,13 @@ import { getColors, Radius, Space } from '@/constants/freehire';
 import { useDismissedJobs } from '@/lib/useDismissedJobs';
 import { useFilters } from '@/lib/filterStore';
 import { activeFilterCount, emptyFilters } from '@/lib/jobFilters';
-import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
+import { useTabBarClearance } from '@/lib/tabBarVisibility';
 import { useTabBarVisibility } from '@/lib/tabBarStore';
 import type { Job } from '@/lib/types';
 import { useJobSearch } from '@/lib/useJobSearch';
 
 export default function FeedScreen() {
+  const tabBarClearance = useTabBarClearance();
   const c = getColors(useColorScheme());
   const { filters, appliedQuery, setQuery, apply } = useFilters();
   const { isDismissed } = useDismissedJobs();
@@ -160,7 +161,7 @@ export default function FeedScreen() {
         data={jobs}
         keyExtractor={(job) => job.public_slug}
         renderItem={({ item }) => <JobCard job={item} />}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: tabBarClearance }]}
         ItemSeparatorComponent={() => <View style={{ height: Space.md }} />}
         keyboardDismissMode="on-drag"
         onScroll={(e) => reportScrollY(e.nativeEvent.contentOffset.y)}
@@ -257,7 +258,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Space.lg,
     paddingTop: Space.sm,
     // Clears the custom bottom tab bar so the last card isn't hidden behind it.
-    paddingBottom: Space.xl + TAB_BAR_HEIGHT,
   },
   footer: {
     paddingVertical: Space.lg,

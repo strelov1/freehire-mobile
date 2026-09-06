@@ -6,6 +6,7 @@ import { renderedText } from '@/__tests__/renderedText';
 import CompaniesScreen from '@/app/(tabs)/companies';
 import type { CompanyListItem, Page } from '@/lib/types';
 import { useCompanySearch } from '@/lib/useCompanySearch';
+import { SafeAreaProvider, type Metrics } from 'react-native-safe-area-context';
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn() },
@@ -59,12 +60,20 @@ function hookResult(over: Record<string, unknown> = {}) {
   } as unknown as ReturnType<typeof useCompanySearch>;
 }
 
+// The screen pads its list to clear the tab bar, which needs the bottom safe-area
+// inset, and that only exists under a provider. Fixed metrics rather than the real
+// device's so the padding a test sees is the same on every machine.
+const SAFE_AREA_METRICS: Metrics = {
+  frame: { x: 0, y: 0, width: 390, height: 844 },
+  insets: { top: 47, left: 0, right: 0, bottom: 34 },
+};
+
 let mounted: ReactTestRenderer.ReactTestRenderer | null = null;
 
 function render() {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   act(() => {
-    renderer = ReactTestRenderer.create(<CompaniesScreen />);
+    renderer = ReactTestRenderer.create(<SafeAreaProvider initialMetrics={SAFE_AREA_METRICS}><CompaniesScreen /></SafeAreaProvider>);
   });
   mounted = renderer;
   return renderer;

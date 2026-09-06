@@ -17,7 +17,7 @@ import { AppSymbol } from '@/components/AppSymbol';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { markNotificationRead } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
-import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
+import { useTabBarClearance } from '@/lib/tabBarVisibility';
 import type { NotificationItem, NotificationsPage } from '@/lib/types';
 import { useNotifications } from '@/lib/useNotifications';
 
@@ -100,6 +100,7 @@ function NotificationCard({
  * one with neither only marks read.
  */
 export default function NotificationsScreen() {
+  const tabBarClearance = useTabBarClearance();
   const c = getColors(useColorScheme());
   const qc = useQueryClient();
   const {
@@ -193,7 +194,7 @@ export default function NotificationsScreen() {
         renderItem={({ item }) => (
           <NotificationCard item={item} colors={c} onPress={() => onPressCard(item)} />
         )}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: tabBarClearance }]}
         ItemSeparatorComponent={() => <View style={{ height: Space.sm }} />}
         onEndReachedThreshold={0.6}
         onEndReached={() => {
@@ -244,7 +245,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Space.lg,
     paddingTop: Space.xs,
     // Clears the custom bottom tab bar so the last card isn't hidden behind it.
-    paddingBottom: Space.xl + TAB_BAR_HEIGHT,
   },
   card: {
     flexDirection: 'row',

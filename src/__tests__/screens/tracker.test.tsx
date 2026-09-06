@@ -7,6 +7,7 @@ import TrackerScreen from '@/app/(tabs)/tracker';
 import { useAuth } from '@/lib/authStore';
 import type { TrackedJob, TrackingPage } from '@/lib/types';
 import { useTrackedJobs } from '@/lib/useTracker';
+import { SafeAreaProvider, type Metrics } from 'react-native-safe-area-context';
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn() },
@@ -58,12 +59,20 @@ const defaultPage: TrackingPage = {
   },
 };
 
+// The screen pads its list to clear the tab bar, which needs the bottom safe-area
+// inset, and that only exists under a provider. Fixed metrics rather than the real
+// device's so the padding a test sees is the same on every machine.
+const SAFE_AREA_METRICS: Metrics = {
+  frame: { x: 0, y: 0, width: 390, height: 844 },
+  insets: { top: 47, left: 0, right: 0, bottom: 34 },
+};
+
 let mounted: ReactTestRenderer.ReactTestRenderer | null = null;
 
 function renderScreen() {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   act(() => {
-    renderer = ReactTestRenderer.create(<TrackerScreen />);
+    renderer = ReactTestRenderer.create(<SafeAreaProvider initialMetrics={SAFE_AREA_METRICS}><TrackerScreen /></SafeAreaProvider>);
   });
   mounted = renderer;
   return renderer;
