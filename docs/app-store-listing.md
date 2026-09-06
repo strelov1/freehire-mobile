@@ -128,7 +128,7 @@ number.
 
 | Field | Value |
 |---|---|
-| Support URL | `https://freehire.me/support` — **check this exists**; Apple rejects a 404 |
+| Support URL | `https://freehire.me/support` — live, and linked from the site footer |
 | Marketing URL | `https://freehire.me` |
 | Privacy Policy URL | `https://freehire.me/privacy` — already used in-app |
 
