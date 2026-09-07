@@ -153,7 +153,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     android: {
       ...config.android,
       package: 'me.freehire.mobile',
-      versionCode: 1,
+      // No `versionCode` on purpose. `eas.json` sets `appVersionSource:
+      // "remote"`, so EAS owns the number and the production profile
+      // increments it; a literal here is ignored by every EAS build and only
+      // warned about. Play refuses an upload whose code it has already seen,
+      // so a hardcoded 1 is a value that can only ever be wrong once the app
+      // is on the store — right up until the second upload.
       adaptiveIcon: {
         backgroundColor: '#ffffff',
         foregroundImage: './assets/images/freehire-icon-light.png',

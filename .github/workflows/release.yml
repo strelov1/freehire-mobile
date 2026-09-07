@@ -7,11 +7,13 @@ name: Release
 #
 #   git tag v1.0.1 && git push origin v1.0.1
 #
-# The two platforms ship on different profiles on purpose. iOS goes out on
+# The platforms ship on different profiles on purpose. iOS goes out on
 # `production` — that is the App Store build, and TestFlight is App Store
-# Connect. Android goes out on `preview`, because `production` emits an .aab for
-# Google Play and Firebase App Distribution needs an APK, which only the
-# internal-distribution profiles produce.
+# Connect. Android goes to Firebase on `preview`, because Firebase App
+# Distribution needs an APK, which only the internal-distribution profiles
+# produce — and to Google Play on `production`, which is the profile that emits
+# the .aab Play needs. Those really are two Android builds, for two audiences
+# that cannot be served by one artifact.
 on:
   push:
     tags: ['v*']
@@ -44,4 +46,27 @@ jobs:
       profile: preview
       distribute-android: true
       testers-group: testers
+    secrets: inherit
+
+  # Google Play, on the `production` profile, because Play takes the .aab that
+  # only that profile emits. This is a SECOND Android build per tag rather than
+  # a replacement for the one above: Firebase stays the fast path for anything
+  # that is not a purchase, and Play Billing only works for an app installed
+  # from Play, so a purchase can only be tested down this route.
+  #
+  # Off until the repository variable `PLAY_SUBMIT_ENABLED` is set to "true"
+  # (Settings → Secrets and variables → Actions → Variables). A variable rather
+  # than a commented-out job: none of what this needs lives in the repo — the
+  # Play app record, the first manual .aab upload, the service account on EAS —
+  # so until somebody has done all three, every tag would carry a red job that
+  # says nothing except that the work outside this repo is not finished. Turning
+  # it on is the last step of that work, not an edit to this file.
+  play:
+    name: Android → Google Play
+    if: vars.PLAY_SUBMIT_ENABLED == 'true'
+    uses: ./.github/workflows/eas-build.yml
+    with:
+      platform: android
+      profile: production
+      submit-android: true
     secrets: inherit

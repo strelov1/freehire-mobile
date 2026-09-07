@@ -6,7 +6,10 @@ same button:
 | | Who gets it | Wired up? |
 |---|---|---|
 | **Testers** — TestFlight + Firebase App Distribution | People you invited | **Yes**, tag and go |
-| **The public** — App Store + Google Play | Anyone | **No**, see [Shipping to the stores](#shipping-to-the-stores) |
+| **The public** — App Store + Google Play | Anyone | **Not yet**, see [Shipping to the stores](#shipping-to-the-stores) |
+
+Google Play is the one in between: the pipeline for it exists and is switched
+off, waiting on work that happens in the Play Console rather than here.
 
 Tagging ships to testers. It does **not** put the app in front of the public.
 
@@ -18,12 +21,17 @@ git push origin v1.0.1
 ```
 
 That is the whole procedure. `.github/workflows/release.yml` fires on any `v*`
-tag and runs two builds in parallel:
+tag and runs these in parallel:
 
 - **iOS** on the `production` profile, then `eas submit` to App Store Connect,
   where it appears under TestFlight.
 - **Android** on the `preview` profile, then upload to Firebase App
   Distribution for the `testers` group.
+- **Android again** on the `production` profile, then `eas submit` to Google
+  Play — only when the repository variable `PLAY_SUBMIT_ENABLED` is `"true"`,
+  which it is not yet. Two Android builds rather than one because the two
+  destinations cannot share an artifact: Firebase takes an APK, Play takes an
+  .aab.
 
 Builds run on EAS, not on the GitHub runner — the workflow only invokes
 `eas build` and waits. Expect ~15–25 minutes.
@@ -132,21 +140,70 @@ Review takes anywhere from a day to a week on a first submission.
 
 ### Google Play
 
-Nothing is connected: EAS holds **no** Google Play service account, and
-`eas.json` has no `submit.android` block.
+**The repository side is done.** `eas.json` has a `submit.production.android`
+block pointing at the `internal` track, `eas-build.yml` has a `submit-android`
+input and the step that uses it, and `release.yml` has an `Android → Google
+Play` job. That job is **off** until the repository variable
+`PLAY_SUBMIT_ENABLED` is set to `true` (Settings → Secrets and variables →
+Actions → Variables) — turning it on is the last step of the work below, not a
+code change.
 
-To wire it:
+Nothing else is connected. As of the last check: the package
+`me.freehire.mobile` is not on Play (404), the `androidpublisher` API is not
+enabled on the `freehire-mobile` GCP project, and the only service accounts
+there are the two Firebase ones. EAS holds no Google Play service account.
 
-1. Create the app in the Play Console and upload one `.aab` **by hand** — Google
-   requires the first upload of a package name to be manual.
-2. Create a Google Cloud service account, grant it release permissions in the
-   Play Console, and give the JSON to EAS
-   (`eas credentials -p android`, or `submit.production.android.serviceAccountKeyPath`).
-3. Fill in the store listing, content rating, data safety form and target
-   audience declarations.
+What remains, in the order it has to happen:
 
-After that, `eas submit -p android --profile production` can push to a track.
-Build the `.aab` with the `production` profile, not `preview`.
+1. **Check the developer account type first**, because one answer costs two
+   weeks. Play Console → Settings → Developer account → Account details. A
+   **personal** account registered after 13 November 2023 cannot reach
+   production until **20 testers have been in a closed test for 14 consecutive
+   days**. An organisation account has no such requirement. If the rule
+   applies, start the closed test before anything else here — everything else
+   can be done while the clock runs.
+2. **Create the app** in the Play Console with the package `me.freehire.mobile`
+   and upload one `.aab` **by hand**. Google refuses the first upload of a
+   package name over the API, so no amount of CI will do this one.
+3. **Create a Google Cloud service account**, grant it release permissions in
+   the Play Console, and give the JSON to EAS with `eas credentials -p android`.
+   Storing it on EAS rather than as a repo secret is deliberate and matches how
+   the Android keystore and the App Store Connect key are already held: nothing
+   secret lives in this repository, so `EXPO_TOKEN` stays the only secret CI
+   needs.
+4. **Fill in** the store listing, content rating questionnaire, Data safety
+   form, target audience and ads declarations. The Data safety answers are the
+   same facts as Apple's App Privacy — derive them from
+   [app-store-privacy.md](app-store-privacy.md) rather than answering twice from
+   memory, and they must agree with the privacy manifest in `app.config.ts`.
+   Play's account-deletion requirement is already met by the in-app delete
+   screen.
+5. **Set `PLAY_SUBMIT_ENABLED=true`.** From then on a `v*` tag builds the .aab
+   and submits it to the `internal` track.
+
+#### The track is in eas.json, not in a dropdown
+
+`submit.production.android.track` is `internal`. That is the safe default and
+the one to start on: internal testing reaches up to 100 testers immediately,
+with no review.
+
+It is **not** the track that satisfies the 20-testers rule. That needs *closed*
+testing (`alpha`). Changing track is an edit to `eas.json`, reviewed like any
+other change — deliberately not a workflow input, because a dropdown that can
+push to `production` is a dropdown that eventually will.
+
+#### Subscriptions have to be built again
+
+The two products do not carry over from App Store Connect. Play needs its own
+subscriptions with their own base plans, and RevenueCat needs its own Google
+Play service account — a **different** credential from the one in step 3, even
+if it belongs to the same account — before it can validate a purchase or
+receive a webhook.
+
+Check that `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` (`goog_…`) exists in the EAS
+`preview` and `production` environments. Its absence does not fail a build:
+`revenueCatKeys.js` allows it on purpose and only warns on the build log, so a
+release that silently cannot sell is a plausible outcome of forgetting it.
 
 ## Version numbers
 
@@ -157,6 +214,11 @@ Build numbers are not yours to manage: `eas.json` sets `appVersionSource:
 "remote"`, so EAS tracks them, and the `production` profile carries
 `autoIncrement`. Two builds of the same `version` differ by build number, which
 is what App Store Connect and Firebase key on.
+
+That is why `app.config.ts` carries **no** `android.versionCode`. It used to
+carry a literal `1`, which every EAS build ignored and only warned about. Play
+refuses an upload whose version code it has already seen, so the literal was a
+value that could only ever be wrong — from the second upload onward.
 
 ## Building without releasing
 

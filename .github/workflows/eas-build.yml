@@ -27,6 +27,16 @@ on:
           Groups) — this workflow doesn't create it.
         type: string
         default: testers
+      submit-android:
+        description: >-
+          Submit the Android build to Google Play once it finishes (blocks the
+          job until the build completes). Needs the `production` profile, since
+          Play takes an .aab. Requires a Google Play service account already
+          stored on EAS via `eas credentials -p android`, and the first upload
+          of this package name to have been made by hand — Google refuses the
+          first one over the API. No-op when platform is "ios".
+        type: boolean
+        default: false
       submit-ios:
         description: >-
           Submit the iOS build to App Store Connect / TestFlight once it
@@ -64,6 +74,9 @@ on:
       testers-group:
         type: string
         default: testers
+      submit-android:
+        type: boolean
+        default: false
       submit-ios:
         type: boolean
         default: false
@@ -84,6 +97,16 @@ jobs:
         if: ${{ inputs.distribute-android && inputs.profile == 'production' && inputs.platform != 'ios' }}
         run: |
           echo "::error::Firebase App Distribution needs an APK; the 'production' profile builds an .aab. Use the 'preview' profile for Android distribution." >&2
+          exit 1
+
+      # The mirror image of the guard above, and for the same reason: Play takes
+      # an .aab and only the production profile emits one. Caught here rather
+      # than after a ~20 minute build, where the message would be about a file
+      # extension rather than about the profile that chose it.
+      - name: Reject a Play submission of an APK
+        if: ${{ inputs.submit-android && inputs.profile != 'production' && inputs.platform != 'ios' }}
+        run: |
+          echo "::error::Google Play needs an .aab; only the 'production' profile builds one. The 'preview' profile is for Firebase." >&2
           exit 1
 
       - name: Checkout
@@ -125,9 +148,10 @@ jobs:
           PLATFORM: ${{ inputs.platform }}
           PROFILE: ${{ inputs.profile }}
           DISTRIBUTE_ANDROID: ${{ inputs.distribute-android }}
+          SUBMIT_ANDROID: ${{ inputs.submit-android }}
           SUBMIT_IOS: ${{ inputs.submit-ios }}
         run: |
-          if [ "$DISTRIBUTE_ANDROID" = "true" ] || [ "$SUBMIT_IOS" = "true" ]; then
+          if [ "$DISTRIBUTE_ANDROID" = "true" ] || [ "$SUBMIT_ANDROID" = "true" ] || [ "$SUBMIT_IOS" = "true" ]; then
             eas build --platform "$PLATFORM" --profile "$PROFILE" --non-interactive --json --wait > build-output.json
           else
             eas build --platform "$PLATFORM" --profile "$PROFILE" --non-interactive --no-wait
@@ -167,6 +191,31 @@ jobs:
             --release-notes "EAS $PROFILE build — $GITHUB_SHA"
 
           rm -f /tmp/firebase-sa.json
+
+      # The track lives in eas.json's submit.production.android, not here: it is
+      # a property of the release, and putting it in a workflow input would let
+      # a stray dispatch push to `production` from a dropdown. Changing track is
+      # an edit to that file, reviewed like any other.
+      #
+      # The Google Play service account JSON must already be on EAS
+      # (`eas credentials -p android`), the same arrangement as the App Store
+      # Connect key below and the Android keystore — nothing secret is held by
+      # this repo, so EXPO_TOKEN is the only secret the step needs. Google also
+      # refuses the FIRST upload of a package name over the API, so one .aab has
+      # to be uploaded by hand in the Play Console before this can ever pass.
+      - name: Submit Android build to Google Play
+        if: ${{ inputs.submit-android && (inputs.platform == 'android' || inputs.platform == 'all') }}
+        env:
+          PROFILE: ${{ inputs.profile }}
+        run: |
+          BUILD_ID=$(jq -r '[.[] | select(.platform == "ANDROID")][0].id // empty' build-output.json)
+          if [ -z "$BUILD_ID" ]; then
+            echo "::error::No Android build id found in build-output.json" >&2
+            cat build-output.json >&2
+            exit 1
+          fi
+
+          eas submit --platform android --profile "$PROFILE" --id "$BUILD_ID" --non-interactive
 
       # eas.json's submit.production.ios has the Apple Team ID; the App Store
       # Connect API Key itself must already be stored on EAS via

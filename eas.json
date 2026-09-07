@@ -29,6 +29,11 @@
       "ios": {
         "appleTeamId": "25U9HN34VM",
         "ascAppId": "6801885119"
+      },
+      "android": {
+        "track": "internal",
+        "releaseStatus": "completed",
+        "changesNotSentForReview": false
       }
     }
   }
