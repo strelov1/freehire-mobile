@@ -55,3 +55,7 @@ example
 # Git worktrees checked out inside the repo (the .claude/ ones are ignored
 # above). Not ours to commit, and jest would otherwise run their tests too.
 .worktrees/
+
+# The App Store Connect scripts import a shared module now, so running one
+# leaves bytecode behind.
+scripts/__pycache__/

@@ -18,23 +18,19 @@ Pass --dry-run to attach the version and report what Apple objects to without
 actually submitting. Worth doing first: a submission that fails validation is
 easier to read here than as a rejection email a day later.
 
-Subscriptions ride along with the version rather than being submitted
-separately — `reviewSubmissionItems` has no `subscription` relationship, and
-attaching them is neither possible nor needed.
+It resubmits as well as submits: a rejected version stays REJECTED while its
+metadata is fixed, so that state is submittable too. Preflight blockers stop the
+run; --force goes ahead anyway.
+
+Subscriptions do NOT ride along with the version. They are attached explicitly,
+through `subscriptionVersion` and `subscriptionGroupVersion` items, and an app
+submitted without them is reviewed without them — see `subscription_items`.
 """
 
 import base64
-import json
-import os
 import sys
-import time
-import urllib.request
 
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec, utils
-
-APP_ID = '6801885119'
-BASE = 'https://api.appstoreconnect.apple.com/v1'
+from asc import APP_ID, BASE, EULA_LINK, call, errors, token
 
 # States in which a submission is still ours to add to, rather than one Apple
 # already has. Reusing an open one matters: the API creates a submission
@@ -42,43 +38,30 @@ BASE = 'https://api.appstoreconnect.apple.com/v1'
 # created a fresh one would leave a trail of them behind.
 OPEN_STATES = 'READY_FOR_REVIEW,UNRESOLVED_ISSUES'
 
-
-def _b64(raw: bytes) -> bytes:
-    return base64.urlsafe_b64encode(raw).rstrip(b'=')
-
-
-def token() -> str:
-    """An ES256 JWT for the App Store Connect API, signed with the .p8 key."""
-    key_id = os.environ['ASC_KEY_ID']
-    issuer = os.environ['ASC_ISSUER']
-    key = serialization.load_pem_private_key(
-        open(os.path.expanduser(os.environ['ASC_KEY']), 'rb').read(), password=None
-    )
-    now = int(time.time())
-    header = _b64(json.dumps({'alg': 'ES256', 'kid': key_id, 'typ': 'JWT'}).encode())
-    payload = _b64(
-        json.dumps(
-            {'iss': issuer, 'iat': now, 'exp': now + 900, 'aud': 'appstoreconnect-v1'}
-        ).encode()
-    )
-    signing_input = header + b'.' + payload
-    r, s = utils.decode_dss_signature(key.sign(signing_input, ec.ECDSA(hashes.SHA256())))
-    return (signing_input + b'.' + _b64(r.to_bytes(32, 'big') + s.to_bytes(32, 'big'))).decode()
-
-
-def call(tok: str, url: str, method: str = 'GET', body=None):
-    data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, method=method, data=data, headers={
-        'Authorization': f'Bearer {tok}',
-        'Content-Type': 'application/json',
-    })
-    try:
-        with urllib.request.urlopen(req, timeout=60) as response:
-            raw = response.read()
-            return response.status, json.loads(raw) if raw else {}
-    except urllib.error.HTTPError as e:
-        raw = e.read()
-        return e.code, json.loads(raw) if raw else {}
+# Versions this script may submit: the ones still in our hands.
+#
+# PREPARE_FOR_SUBMISSION is the first submission. The three rejections are the
+# resubmission after a fix, and they are the reason this is a set rather than
+# one string — a rejected version stays REJECTED while its metadata is edited,
+# so filtering on PREPARE_FOR_SUBMISSION alone reported "nothing to submit"
+# for precisely the case a resubmission script is for.
+#
+# READY_FOR_REVIEW is the state a version enters the moment it is attached to a
+# submission, before anything is submitted. Without it this script locks itself
+# out halfway through its own run: it attaches the version, and the next
+# invocation no longer recognises it as one to submit.
+#
+# Deliberately absent: WAITING_FOR_REVIEW, IN_REVIEW and
+# PENDING_DEVELOPER_RELEASE. Those are queued, being read, or already approved
+# — submitting over one is at best a no-op and at worst throws away a place in
+# the queue, and neither is a thing to do by accident.
+SUBMITTABLE_STATES = {
+    'PREPARE_FOR_SUBMISSION',
+    'READY_FOR_REVIEW',
+    'REJECTED',
+    'DEVELOPER_REJECTED',
+    'METADATA_REJECTED',
+}
 
 
 def preflight(tok: str, version_id: str) -> list[str]:
@@ -109,26 +92,120 @@ def preflight(tok: str, version_id: str) -> list[str]:
     if not (build.get('data') or {}).get('id'):
         problems.append('No build attached to the version')
 
+    # The rejection that 1.0.2 actually collected. The link is required on the
+    # product page as well as in the binary, and the binary having it is what
+    # made the omission easy to miss — so it is checked here by name.
+    status, locs = call(tok, f'{BASE}/appStoreVersions/{version_id}/appStoreVersionLocalizations')
+    for loc in locs.get('data', []):
+        description = loc['attributes'].get('description') or ''
+        if EULA_LINK not in description:
+            problems.append(
+                f"No Terms of Use (EULA) link in the {loc['attributes']['locale']} description "
+                '— rejected under 3.1.2. Run scripts/asc-description.py'
+            )
+
     return problems
+
+
+def held_resource_ids(tok: str, submission_id: str) -> set[str]:
+    """What the submission already holds, by the id of the underlying resource.
+
+    A `reviewSubmissionItems` id is not opaque: base64-decoded it reads
+    `{submission}|{typecode}|{resource}`, and the resource part is the only way
+    to tell what an item actually is. The relationships are not served — asking
+    for them with `?include=` returns nothing — so decoding the id is the only
+    way to make attaching idempotent rather than a guess.
+
+    The version's resource id is Apple's internal numeric one and not the UUID
+    the API takes, so it never matches; a version already attached is caught by
+    the state filter instead. The subscriptions match on their UUIDs, which is
+    what this is for.
+    """
+    status, contents = call(tok, f'{BASE}/reviewSubmissions/{submission_id}/items?limit=50')
+    found = set()
+    for item in contents.get('data', []):
+        raw = item['id']
+        try:
+            decoded = base64.b64decode(raw + '=' * (-len(raw) % 4)).decode()
+        except (ValueError, UnicodeDecodeError):
+            continue
+        parts = decoded.split('|')
+        if len(parts) == 3:
+            found.add(parts[2])
+    return found
+
+
+def subscription_items(tok: str) -> list[tuple[str, str, str]]:
+    """Every subscription resource that still needs a review, ready to attach.
+
+    Subscriptions do NOT ride along with the version, whatever it looks like
+    from a submission that already has them: nothing attaches them
+    automatically, and an app submitted without them is reviewed without them.
+    Nor can they be submitted on their own — Apple answers that with "must have
+    an approved appStoreVersions ... or an appStoreVersions must be included in
+    this review submission", which for an app that has never shipped means one
+    submission carrying both.
+
+    The relationship is `subscriptionVersion`, not `subscription`: the item
+    points at the version of the subscription rather than the subscription
+    itself. The group needs its own `subscriptionGroupVersion` item beside them,
+    and leaving it out is refused with the same unreadable "not in valid state"
+    that a missing field gives.
+    """
+    items: list[tuple[str, str, str]] = []
+
+    status, groups = call(tok, f'{BASE}/apps/{APP_ID}/subscriptionGroups?limit=50')
+    for group in groups.get('data', []):
+        status, versions = call(tok, f"{BASE}/subscriptionGroups/{group['id']}/versions?limit=10")
+        for version in versions.get('data', []):
+            if version['attributes']['state'] in SUBMITTABLE_STATES:
+                items.append(
+                    ('subscriptionGroupVersion', 'subscriptionGroupVersions', version['id'])
+                )
+
+        status, subscriptions = call(
+            tok, f"{BASE}/subscriptionGroups/{group['id']}/subscriptions?limit=50"
+        )
+        for subscription in subscriptions.get('data', []):
+            status, versions = call(
+                tok, f"{BASE}/subscriptions/{subscription['id']}/versions?limit=10"
+            )
+            for version in versions.get('data', []):
+                if version['attributes']['state'] in SUBMITTABLE_STATES:
+                    items.append(('subscriptionVersion', 'subscriptionVersions', version['id']))
+
+    return items
 
 
 def main() -> int:
     dry_run = '--dry-run' in sys.argv
     tok = token()
 
-    status, versions = call(tok, f'{BASE}/apps/{APP_ID}/appStoreVersions?limit=5')
+    status, versions = call(tok, f'{BASE}/apps/{APP_ID}/appStoreVersions?limit=10')
     prepared = [
         v for v in versions.get('data', [])
-        if v['attributes']['appStoreState'] == 'PREPARE_FOR_SUBMISSION'
+        if v['attributes']['appStoreState'] in SUBMITTABLE_STATES
     ]
     if not prepared:
-        print('No version is in PREPARE_FOR_SUBMISSION — nothing to submit.')
+        seen = ', '.join(sorted({
+            v['attributes']['appStoreState'] for v in versions.get('data', [])
+        })) or 'none'
+        print(f'No version is ours to submit. States seen: {seen}')
         return 1
     version_id = prepared[0]['id']
-    print(f"Version {prepared[0]['attributes']['versionString']} ({version_id})")
+    print(f"Version {prepared[0]['attributes']['versionString']} "
+          f"({prepared[0]['attributes']['appStoreState']}, {version_id})")
 
-    for problem in preflight(tok, version_id):
+    problems = preflight(tok, version_id)
+    for problem in problems:
         print('  blocker:', problem)
+    # Every one of these is fatal, and not all of them are fatal in the same
+    # place: Apple refuses the unset ones when the version is attached, but a
+    # description missing its EULA link attaches perfectly and comes back a day
+    # later as a rejection. Stopping here costs a rerun; going on costs a day.
+    if problems and '--force' not in sys.argv:
+        print('\nRefusing to submit. Fix them, or pass --force to submit anyway.')
+        return 1
 
     status, existing = call(
         tok, f'{BASE}/apps/{APP_ID}/reviewSubmissions?filter[state]={OPEN_STATES}'
@@ -144,26 +221,35 @@ def main() -> int:
             'relationships': {'app': {'data': {'type': 'apps', 'id': APP_ID}}},
         }})
         if status not in (200, 201):
-            for error in created.get('errors', []):
-                print('error:', error.get('detail'))
+            for problem in errors(created):
+                print('error:', problem)
             return 1
         submission_id = created['data']['id']
         print(f'Created submission {submission_id}')
 
-    status, item = call(tok, f'{BASE}/reviewSubmissionItems', 'POST', {'data': {
-        'type': 'reviewSubmissionItems',
-        'relationships': {
-            'reviewSubmission': {'data': {'type': 'reviewSubmissions', 'id': submission_id}},
-            'appStoreVersion': {'data': {'type': 'appStoreVersions', 'id': version_id}},
-        },
-    }})
-    if status not in (200, 201):
-        for error in item.get('errors', []):
-            print('version not attachable:', error.get('detail'))
-        print('\nApple says the version cannot be reviewed yet. The usual causes are the')
-        print('two above it cannot check for you: App Review Details, and App Privacy.')
-        return 1
-    print('Version attached to the submission.')
+    wanted = [('appStoreVersion', 'appStoreVersions', version_id)] + subscription_items(tok)
+    present = held_resource_ids(tok, submission_id)
+
+    for relationship, kind, resource_id in wanted:
+        if resource_id in present:
+            print(f'  already attached: {relationship} {resource_id}')
+            continue
+        status, item = call(tok, f'{BASE}/reviewSubmissionItems', 'POST', {'data': {
+            'type': 'reviewSubmissionItems',
+            'relationships': {
+                'reviewSubmission': {'data': {'type': 'reviewSubmissions', 'id': submission_id}},
+                relationship: {'data': {'type': kind, 'id': resource_id}},
+            },
+        }})
+        if status not in (200, 201):
+            for problem in errors(item):
+                print(f'{relationship} not attachable:', problem)
+            print('\nApple says the resource cannot be reviewed yet. For a version the usual')
+            print('causes are the two it cannot check for you: App Review Details and App')
+            print('Privacy. For a subscription it is a missing localization, price,')
+            print('availability or review screenshot.')
+            return 1
+        print(f'  attached: {relationship} {resource_id}')
 
     if dry_run:
         print('Dry run — not submitting.')
@@ -175,8 +261,8 @@ def main() -> int:
     if status in (200, 201):
         print('State:', submitted['data']['attributes'].get('state'))
         return 0
-    for error in submitted.get('errors', []):
-        print('error:', error.get('detail'))
+    for problem in errors(submitted):
+        print('error:', problem)
     return 1
 
 

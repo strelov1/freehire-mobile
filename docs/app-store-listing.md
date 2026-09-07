@@ -91,6 +91,17 @@ FREE, WITH AN OPTIONAL PRO PLAN
 
 Searching, matching, filtering and tracking are free. Pro raises the limits on
 the parts that cost us money to run.
+
+freehire Pro is an auto-renewing subscription, billed monthly or yearly. The
+price is shown in your own storefront's currency before you buy, and payment is
+charged to your Apple Account on confirmation. It renews for the same period
+unless auto-renew is switched off at least 24 hours before the current period
+ends; the renewal is charged within 24 hours of that. Manage or cancel it in
+your Apple Account settings at any time.
+
+Terms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Privacy Policy: https://freehire.me/privacy
+Terms of Service: https://freehire.me/terms
 ```
 
 ## Keywords (100 max, comma-separated, no spaces after commas)
@@ -132,8 +143,39 @@ number.
 | Marketing URL | `https://freehire.me` |
 | Privacy Policy URL | `https://freehire.me/privacy` — already used in-app |
 
-The app links to `https://freehire.me/terms` from the plan screen, which is
-where Apple expects an EULA for a subscription.
+The plan screen links to `https://freehire.me/terms` and to the privacy policy,
+which is what 3.1.2 asks for **inside the binary**. That is not the same
+requirement as the one below, and reading it as the same one cost a rejection.
+
+### The EULA link, and why the in-app one does not count
+
+1.0.2 was rejected under **3.1.2 Business: Payments — Subscriptions**: "does not
+include a functional link to the Terms of Use (EULA) in the app metadata that
+appears on the app's App Store product page."
+
+3.1.2 asks for the link in *two* places, and they are satisfied separately:
+
+| Where | How it is satisfied | Was it? |
+|---|---|---|
+| In the binary, on the screen that sells | `src/app/account/plan.tsx` links Terms and Privacy under the packages | Yes, since 1.0.2 |
+| On the App Store product page | A link in the **Description**, or a custom EULA uploaded to App Store Connect | **No** — this is what was rejected |
+
+The product-page half is metadata only: no new build, no new binary, no version
+bump. The fix is the `Terms of Use (EULA):` line now at the foot of the
+description above, pushed with `scripts/asc-description.py`.
+
+We link **Apple's standard EULA** rather than `freehire.me/terms`, deliberately.
+That page is live and is a perfectly good site terms-of-service, but it does not
+contain the words subscription, licence, payment, refund or auto-renew — it is
+about acceptable use and where the job listings come from. Naming it as the
+licence agreement for an auto-renewing subscription would put a link in the slot
+Apple checks while leaving the document silent on the thing it is meant to
+govern. It is still linked, one line down, as what it actually is.
+
+If `freehire.me/terms` ever gains a subscription section, this becomes a choice
+again: either link it as the EULA, or upload it via `POST
+/v1/endUserLicenseAgreements` (currently `null` for this app — no custom EULA is
+set, so Apple's standard one already applies).
 
 ## Category
 
@@ -267,6 +309,86 @@ the checks it can make itself.
 One quirk worth knowing: a `reviewSubmission` can be created but neither deleted
 nor cancelled while empty. There is already one open against this app from a
 diagnostic run; the script reuses it rather than leaving a second behind.
+
+### Resubmitting after a rejection
+
+A rejected submission cannot be reused. `PATCH submitted: true` on it answers
+`appStoreVersions ... is not in valid state`, and adding anything answers
+`reviewSubmission state does not allow adding more items`. The only way through
+is to **cancel it** (`PATCH canceled: true` — the attribute exists and will only
+take `true`) and build a fresh one.
+
+Cancelling is asynchronous: the state goes `CANCELING` and settles on
+`COMPLETE` within seconds.
+
+Four things about the state machine, all of which cost a round trip to find:
+
+- **The version stays `REJECTED`.** It does not return to
+  `PREPARE_FOR_SUBMISSION`, so filtering for that state reports "nothing to
+  submit" for exactly the case a resubmission is.
+- **Attaching a version moves it to `READY_FOR_REVIEW`** before anything is
+  submitted. Leave that state out of `SUBMITTABLE_STATES` and the script locks
+  itself out halfway through its own run.
+- **Cancelling a submission developer-rejects everything in it.** The two
+  subscription versions came back as `DEVELOPER_REJECTED`, and
+  `POST /v1/subscriptionSubmissions` then refuses them with "has no pending
+  version for submission". Attaching them to a new submission clears it — the
+  state is a property of the submission they were in, not damage to the
+  subscription.
+- **A version can sit in more than one submission over its life.** The item id
+  is the same each time, because it is keyed on Apple's internal numeric id for
+  the version rather than the UUID the API takes.
+
+So a metadata-only fix is: edit `docs/app-store-listing.md`, push it with
+`asc-description.py`, cancel the rejected submission, and submit a new one.
+
+```sh
+ASC_KEY_ID=A3WPL9J4BH ASC_KEY=~/Downloads/AuthKey_A3WPL9J4BH.p8 \
+ASC_ISSUER=1880749a-1238-40bc-ac7e-e072c446b056 \
+python3 scripts/asc-description.py --dry-run   # then without --dry-run
+```
+
+`asc-submit.py` now refuses to run while preflight has anything to say, instead
+of printing the blockers and carrying on. The reason is the EULA check it
+gained: the unset-field blockers are all caught again when Apple is asked to
+attach the version, but a description missing its EULA link attaches perfectly
+and comes back a day later as a rejection. `--force` overrides.
+
+### Subscriptions do not ride along
+
+This was recorded here the wrong way round, and it is the more expensive of the
+two mistakes on this page. Subscriptions are **not** carried into review by the
+version. Nothing attaches them; an app submitted without them is reviewed
+without them, and its purchases are not approved.
+
+Nor can they go on their own. A submission holding only subscriptions is
+refused with "App 6801885119 must have an approved appStoreVersions for platform
+IOS, or an appStoreVersions must be included in this review submission" — so
+until the app has shipped once, the version and the subscriptions must travel in
+**one** submission.
+
+Three items are needed beside the version, and none of them is the subscription
+itself:
+
+| Item | Relationship on `reviewSubmissionItems` | Found at |
+|---|---|---|
+| Each subscription | `subscriptionVersion` | `GET /v1/subscriptions/{id}/versions` |
+| The group they belong to | `subscriptionGroupVersion` | `GET /v1/subscriptionGroups/{id}/versions` |
+
+`subscription` and `subscriptionGroupLocalization` are **not** relationships on
+`reviewSubmissionItems`; both are refused as unknown. Omitting the group version
+is refused as `subscriptionVersions ... is not in valid state`, which reads
+exactly like a missing field on the subscription and is not one — the
+subscription can be complete in every respect and still be refused for the
+group's absence.
+
+`asc-submit.py` assembles all of this itself now, in `subscription_items`.
+
+One trick worth keeping: a `reviewSubmissionItems` id is not opaque. Base64
+decoded it reads `{submission}|{typecode}|{resource}`, which is the only way to
+see what an item is — `?include=appStoreVersion,subscription` returns nothing,
+and the relationships come back empty. Typecode 6 is the app version, 18 a
+subscription version, 19 the group version.
 
 ---
 
