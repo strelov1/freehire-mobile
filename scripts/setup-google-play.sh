@@ -208,11 +208,24 @@ else
   warn "gh is missing or not logged in. Stage 10 will tell you the command instead."
 fi
 
-if npx --no-install eas --version >/dev/null 2>&1 || command -v eas >/dev/null 2>&1; then
-  say "✓ eas-cli is available."
+# How to invoke EAS, decided once. The package is `eas-cli` and its binary is
+# `eas`, which are not the same word to npx: `npx eas` fails with "could not
+# determine executable to run", because npx looks for a PACKAGE called eas.
+# Spelling it `npx eas-cli` is what makes the fallback work at all.
+if command -v eas >/dev/null 2>&1; then
+  EAS=(eas)
+  say "✓ eas-cli is installed."
 else
-  warn "eas-cli is not installed. Stages 4, 5 and 8 need it:"
-  note "  npm i -g eas-cli && eas login"
+  EAS=(npx --yes eas-cli)
+  say "• eas-cli is not installed; falling back to npx eas-cli."
+  note "  Slower on first use, since npx fetches it. To install: npm i -g eas-cli"
+fi
+
+if "${EAS[@]}" whoami >/dev/null 2>&1; then
+  say "✓ Logged in to EAS."
+else
+  warn "Not logged in to EAS. Stages 4, 5 and 8 will fail. Run:"
+  note "  ${EAS[*]} login"
 fi
 pause "Press Enter to continue."
 
@@ -261,8 +274,8 @@ say "The .aab comes from the 'production' profile — 'preview' builds an APK fo
 say "Firebase and Play will not take it."
 
 if confirm "Run the EAS build now? (~20 minutes; skip if you already have an .aab)"; then
-  npx eas build --platform android --profile production || \
-    warn "The build failed or was interrupted. Re-run it yourself: npx eas build -p android --profile production"
+  "${EAS[@]}" build --platform android --profile production || \
+    warn "The build failed or was interrupted. Re-run it: ${EAS[*]} build -p android --profile production"
 else
   note "Skipped. Download the .aab from https://expo.dev when you have one."
 fi
@@ -296,7 +309,7 @@ pause "Press Enter once the service account can release."
 say ""
 say "Now hand the JSON to EAS. This is interactive — it asks you to pick the"
 say "file — so run it in this terminal after the wizard, or in another window:"
-note "  npx eas credentials -p android"
+note "  ${EAS[*]} credentials -p android"
 note "  → production → Google Service Account → Manage → upload the JSON"
 warn "The JSON stays on EAS, never in this repository. Delete the download"
 warn "once EAS has it."
@@ -360,10 +373,10 @@ else
   say ""
   say "Now put it in both EAS environments that build releases:"
   for env_name in preview production; do
-    npx eas env:create --name EXPO_PUBLIC_REVENUECAT_ANDROID_KEY \
+    "${EAS[@]}" env:create --name EXPO_PUBLIC_REVENUECAT_ANDROID_KEY \
       --value "$EXPO_PUBLIC_REVENUECAT_ANDROID_KEY" \
       --environment "$env_name" --visibility plaintext --non-interactive || \
-      warn "Could not set it for '$env_name'. Do it by hand, or with eas env:update if it already exists."
+      warn "Could not set it for '$env_name' — if it already exists, use ${EAS[*]} env:update instead."
   done
 fi
 pause "Press Enter to continue."
