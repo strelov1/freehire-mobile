@@ -153,6 +153,17 @@ Nothing else is connected. As of the last check: the package
 enabled on the `freehire-mobile` GCP project, and the only service accounts
 there are the two Firebase ones. EAS holds no Google Play service account.
 
+There is a wizard for the rest of it:
+
+```sh
+./scripts/setup-google-play.sh
+```
+
+It walks the ten steps below one screen at a time, opens each console page,
+captures what you copy back, sets the EAS environment values and the repository
+variable, and can be stopped with Ctrl-C and re-run. What follows is the same
+procedure in prose, for reading rather than doing.
+
 What remains, in the order it has to happen:
 
 1. **Check the developer account type first**, because one answer costs two
