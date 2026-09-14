@@ -25,6 +25,12 @@ run; --force goes ahead anyway.
 Subscriptions do NOT ride along with the version. They are attached explicitly,
 through `subscriptionVersion` and `subscriptionGroupVersion` items, and an app
 submitted without them is reviewed without them — see `subscription_items`.
+
+Pass --without-subscriptions for a release that does not sell. 1.0.3 is one:
+the Paid Apps Agreement is unsigned, so StoreKit calls every product identifier
+invalid, and the build ships with no purchase surface rather than one that
+cannot load prices. Sending the products to review beside it would ask Apple to
+approve what the binary does not offer.
 """
 
 import base64
@@ -227,7 +233,15 @@ def main() -> int:
         submission_id = created['data']['id']
         print(f'Created submission {submission_id}')
 
-    wanted = [('appStoreVersion', 'appStoreVersions', version_id)] + subscription_items(tok)
+    # A release that does not sell submits the version alone. Attaching a
+    # subscription to it would put the products through review for a binary with
+    # no purchase surface, and Apple reviews what is attached rather than what the
+    # app turns out to use — the 2.1(b) rejection in reverse.
+    wanted = [('appStoreVersion', 'appStoreVersions', version_id)]
+    if '--without-subscriptions' not in sys.argv:
+        wanted += subscription_items(tok)
+    else:
+        print('  subscriptions: skipped (--without-subscriptions)')
     present = held_resource_ids(tok, submission_id)
 
     for relationship, kind, resource_id in wanted:
