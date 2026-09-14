@@ -256,7 +256,16 @@ def main() -> int:
             },
         }})
         if status not in (200, 201):
-            for problem in errors(item):
+            problems = errors(item)
+            # "Already added" is not a refusal, and the version is the one item
+            # `held_resource_ids` cannot recognise — Apple stores it under its
+            # internal numeric id, so the decoded id never matches the UUID this
+            # loop holds. A --dry-run leaves the version attached, and without
+            # this the very next run fails on the state its own dry run created.
+            if any('already added' in problem for problem in problems):
+                print(f'  already attached: {relationship} {resource_id}')
+                continue
+            for problem in problems:
                 print(f'{relationship} not attachable:', problem)
             print('\nApple says the resource cannot be reviewed yet. For a version the usual')
             print('causes are the two it cannot check for you: App Review Details and App')
