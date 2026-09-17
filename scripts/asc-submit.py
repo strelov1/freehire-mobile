@@ -42,7 +42,24 @@ from asc import APP_ID, BASE, EULA_LINK, call, errors, token
 # already has. Reusing an open one matters: the API creates a submission
 # happily but refuses to delete or cancel an empty one, so a script that always
 # created a fresh one would leave a trail of them behind.
-OPEN_STATES = 'READY_FOR_REVIEW,UNRESOLVED_ISSUES'
+OPEN_STATES = 'READY_FOR_REVIEW'
+
+# The state a rejected submission is left in, and the reason this is separate
+# from OPEN_STATES rather than part of it.
+#
+# UNRESOLVED_ISSUES reads like "still ours" and behaves like Apple's: the
+# submission survives the rejection, `reviewSubmissions` still lists it as open,
+# and attaching anything to it is refused with "Resource state is invalid. —
+# reviewSubmission state does not allow adding more items". It was in OPEN_STATES
+# for exactly one release, and it made the resubmission after the 1.0.3 rejection
+# fail on its first call — the script found the rejected submission, decided to
+# reuse it, and could not add the very version it was invoked to submit.
+#
+# So it is cancelled instead. Cancelling costs nothing: the rejection already
+# closed it for Apple, the version has left it, and CANCELING settles into
+# COMPLETE within a minute. What it buys is the next `create` being reached at
+# all.
+STALE_STATE = 'UNRESOLVED_ISSUES'
 
 # Versions this script may submit: the ones still in our hands.
 #
@@ -212,6 +229,17 @@ def main() -> int:
     if problems and '--force' not in sys.argv:
         print('\nRefusing to submit. Fix them, or pass --force to submit anyway.')
         return 1
+
+    # A rejected submission left open blocks the new one, so it goes first.
+    status, stale = call(
+        tok, f'{BASE}/apps/{APP_ID}/reviewSubmissions?filter[state]={STALE_STATE}'
+    )
+    for submission in stale.get('data', []):
+        call(tok, f"{BASE}/reviewSubmissions/{submission['id']}", 'PATCH', {'data': {
+            'type': 'reviewSubmissions', 'id': submission['id'],
+            'attributes': {'canceled': True},
+        }})
+        print(f"Cancelled the rejected submission {submission['id']}")
 
     status, existing = call(
         tok, f'{BASE}/apps/{APP_ID}/reviewSubmissions?filter[state]={OPEN_STATES}'
