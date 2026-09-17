@@ -87,10 +87,17 @@ SEE THE EMPLOYER, NOT JUST THE ROLE
 Company pages with what the company does, its industries, size, founding year,
 and every open role in one place.
 
-FREE TO USE
+FREE, WITH AN OPTIONAL PRO PLAN
 
-Searching, matching, filtering and tracking are free, with daily limits on the
-parts that cost us money to run.
+Searching, matching, filtering and tracking are free. Pro raises the limits on
+the parts that cost us money to run.
+
+freehire Pro is an auto-renewing subscription, billed monthly or yearly. The
+price is shown in your own storefront's currency before you buy, and payment is
+charged to your Apple Account on confirmation. It renews for the same period
+unless auto-renew is switched off at least 24 hours before the current period
+ends; the renewal is charged within 24 hours of that. Manage or cancel it in
+your Apple Account settings at any time.
 
 Terms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 Privacy Policy: https://freehire.me/privacy
@@ -207,23 +214,31 @@ resource from the prices and is not created by setting them. `POST
 /v1/subscriptionAvailabilities` with `availableInNewTerritories: true` and the
 full territory list flipped both to `READY_TO_SUBMIT` immediately.
 
-**Not sold in 1.0.3.** That release ships with the purchase surface absent, and
-the description above loses its auto-renewing block to match — promising a
-subscription the binary cannot sell is how 2.1(b) happens twice. The cause was
-never the products: 1.0.2 was rejected because StoreKit called every identifier
-invalid, and it did so because **Paid Apps Agreement is still at `New`**. Only
-Free Apps is Active, and that one covers distributing the app rather than
-selling inside it. No endpoint serves that row — `agreements` and
-`paidApplicationsAgreements` both 404 — so it is invisible to every preflight
-this repo can write.
+**Parked for two builds, and unparked here.** Builds 12 and 13 of 1.0.3 bracket
+the whole episode, and it is written down because the same trap is one
+environment variable away at any time.
 
-Removing `EXPO_PUBLIC_REVENUECAT_IOS_KEY` from the production environment is the
-whole switch, because `revenueCatKeys.js` treats an absent key as a supported
-state rather than a broken build. The Android key stays: `resolvePurchaseKey`
-reads per platform. The subscriptions keep their prices, localizations and
-review screenshots and stay `READY_TO_SUBMIT`; they are simply not attached to
-the submission. Key, description block and subscription items go back together,
-once Business shows Paid Apps as `Active`.
+The products were never the problem. 1.0.2 was rejected because StoreKit called
+every identifier invalid, and it did so because **Paid Apps Agreement sat at
+`New`**: only Free Apps was Active, and that one covers distributing the app
+rather than selling inside it. No endpoint serves that row — `agreements` and
+`paidApplicationsAgreements` both 404 — so it is invisible to every preflight
+this repo can write, and the only honest check is a TestFlight build opened on a
+device: prices on the plan screen, or `Prices are unavailable`.
+
+Build 12 answered that by removing `EXPO_PUBLIC_REVENUECAT_IOS_KEY` from the EAS
+production environment, which is the whole switch — `revenueCatKeys.js` treats
+an absent key as a supported state rather than a broken build. It was rejected
+anyway, under 2.1(b) again, for the mirror-image reason: the App Review Notes
+still sent the reviewer to Profile -> Pro to find two subscriptions that the
+binary no longer offered. **A release that does not sell has to say so in all
+three places** — the key, the description block above, and `PURCHASES` in
+`scripts/asc-review-details.py` — and build 12 changed only two of them.
+
+Build 13 puts all three back together, in that same order. The subscriptions
+kept their prices, localizations and review screenshots throughout and stayed
+`READY_TO_SUBMIT`; they are attached to the submission again by running
+`asc-submit.py` without `--without-subscriptions`.
 
 ## Demo account for review
 

@@ -30,6 +30,19 @@ from cryptography.hazmat.primitives.asymmetric import ec, utils
 APP_ID = '6801885119'
 BASE = 'https://api.appstoreconnect.apple.com/v1'
 
+# Versions whose review details are still ours to edit — the same set
+# `asc-submit.py` may submit, and for the same reason. Filtering on
+# PREPARE_FOR_SUBMISSION alone reported "nothing to fill in" for a rejected
+# version, which is precisely when the notes need rewriting: a 2.1(b) rejection
+# is answered by changing what the notes tell the reviewer to look for.
+EDITABLE_STATES = {
+    'PREPARE_FOR_SUBMISSION',
+    'READY_FOR_REVIEW',
+    'REJECTED',
+    'DEVELOPER_REJECTED',
+    'METADATA_REJECTED',
+}
+
 NOTES = """The match, the profile and the tracker are all behind sign-in, so please use the demo account above.
 
 Sign in: Profile tab -> Sign in -> email + password (the OAuth buttons are optional alternatives).
@@ -42,7 +55,27 @@ What to look at:
 
 Match figures only appear once the profile has skills; the demo account already has twelve.
 
-Subscription: Profile -> Pro. Two auto-renewing subscriptions (monthly and annual) raise the usage limits on search and matching. Everything else in the app is free and needs no purchase to review."""
+{purchases}"""
+
+# What the notes say about buying anything, and the one paragraph that has to
+# agree with the binary rather than with the plan.
+#
+# It is separate because it is the only part that changes between a release that
+# sells and one that does not, and because getting that wrong is what 1.0.3 was
+# rejected for — twice. The notes sent the reviewer to Profile -> Pro to find two
+# subscriptions while the build shipped with no RevenueCat key, so
+# `isPurchasingSupported` was false and the plan screen rendered the free
+# allowances and nothing to buy. He followed the route, found no products, and
+# rejected under 2.1(b) "cannot locate the In-App Purchases".
+#
+# So: whenever EXPO_PUBLIC_REVENUECAT_IOS_KEY changes in the EAS production
+# environment, this paragraph changes with it. The build being reviewed now
+# carries the key again, which makes the route below true.
+PURCHASES = """Subscription: Profile -> Pro. Two auto-renewing subscriptions (monthly and annual) raise the usage limits on search and matching. Both are shown with their prices on that screen, and Restore Purchases is on the same screen.
+
+Everything else in the app is free and needs no purchase to review: search, matching, filtering and the application tracker all work on the free plan, with daily limits."""
+
+NOTES = NOTES.format(purchases=PURCHASES)
 
 
 def _b64(raw: bytes) -> bytes:
@@ -102,10 +135,13 @@ def main() -> int:
     status, versions = call(tok, f'{BASE}/apps/{APP_ID}/appStoreVersions?limit=5')
     prepared = [
         v['id'] for v in versions.get('data', [])
-        if v['attributes']['appStoreState'] == 'PREPARE_FOR_SUBMISSION'
+        if v['attributes']['appStoreState'] in EDITABLE_STATES
     ]
     if not prepared:
-        print('No version is in PREPARE_FOR_SUBMISSION — nothing to fill in.')
+        seen = ', '.join(sorted({
+            v['attributes']['appStoreState'] for v in versions.get('data', [])
+        })) or 'none'
+        print(f'No version is ours to edit. States seen: {seen}')
         return 1
     version_id = prepared[0]
 
