@@ -1,7 +1,7 @@
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import type { SFSymbol } from 'expo-symbols';
-import { memo, useMemo, useRef } from 'react';
+import { memo, useMemo, useRef, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
@@ -89,7 +89,7 @@ function TeaserBlur({ scheme }: { scheme: string | null | undefined }) {
  * Wrapped in `memo` because the feed re-renders on every page append; a card only
  * needs to re-render when its `job` identity changes.
  */
-export const JobCard = memo(function JobCard({ job }: { job: Job }) {
+export const JobCard = memo(function JobCard({ job, children }: { job: Job; children?: ReactNode }) {
   const scheme = useColorScheme();
   const c = getColors(scheme);
   const { user } = useAuth();
@@ -328,6 +328,8 @@ export const JobCard = memo(function JobCard({ job }: { job: Job }) {
             {teaser ? <TeaserBlur scheme={scheme} /> : null}
           </View>
         ) : null}
+        {/* Extra content a host screen hangs on the card (the assistant's reasons). */}
+        {children}
       </Pressable>
     </Swipeable>
   );

@@ -104,14 +104,16 @@ export default function RootLayout() {
                   {/* One sheet for sign in, register, forgot and reset — the mode
                       rides in as `?mode=`, so a reset deep link lands here too. */}
                   <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'modal' }} />
+                  <Stack.Screen name="assistant/[id]" options={{ headerShown: false }} />
                   {/* Account screens */}
                   <Stack.Screen name="account/plan" options={{ headerShown: false }} />
                   <Stack.Screen name="account/profile" options={{ headerShown: false }} />
                   <Stack.Screen name="account/security" options={{ headerShown: false }} />
                   <Stack.Screen name="account/delete" options={{ headerShown: false }} />
                   {/* A multi-job digest's own matched-jobs list, pushed from the
-                      Notifications tab — no native header, same reasoning as
+                      Notifications screen — no native header, same reasoning as
                       jobs/[slug]. */}
+                  <Stack.Screen name="notifications/index" options={{ headerShown: false }} />
                   <Stack.Screen name="notifications/[id]" options={{ headerShown: false }} />
                 </Stack>
               </TabBarVisibilityProvider>

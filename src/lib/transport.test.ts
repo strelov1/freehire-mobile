@@ -88,3 +88,52 @@ describe('shared transport', () => {
     );
   });
 });
+
+describe('streaming response transport', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => { global.fetch = originalFetch; });
+
+  it('returns the unread response for a successful stream and still reports required-auth failures', async () => {
+    const streamed = response(200, 'event: result\n\ndata: {}\n\n', 'text/event-stream');
+    global.fetch = jest.fn().mockResolvedValue(streamed.response);
+    const raw = await request<Response>('/stream', { authMode: 'required', responseType: 'stream' });
+    expect(raw).toBe(streamed.response);
+    expect(streamed.text).not.toHaveBeenCalled();
+    const onUnauthorized = jest.fn();
+    const unsubscribe = subscribeUnauthorized(onUnauthorized);
+    global.fetch = jest.fn().mockResolvedValue(response(401, '{"error":"Sign in"}').response);
+    await expect(request('/stream', { authMode: 'required', sessionEpoch: 7, responseType: 'stream' })).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).toHaveBeenCalledWith({ endpoint: '/stream', sessionEpoch: 7 });
+    unsubscribe();
+  });
+});
+
+it('keeps a streaming response linked to caller cancellation after headers arrive', async () => {
+  const originalFetch = global.fetch;
+  const streamed = response(200, '', 'text/event-stream');
+  let fetchSignal: AbortSignal | null | undefined;
+  global.fetch = jest.fn(async (_url, init) => { fetchSignal = init?.signal; return streamed.response; });
+  const controller = new AbortController();
+  try {
+    await request<Response>('/stream', { authMode: 'required', signal: controller.signal, responseType: 'stream' });
+    controller.abort();
+    expect(fetchSignal?.aborted).toBe(true);
+  } finally { global.fetch = originalFetch; }
+});
+
+it('uploads multipart bodies without JSON serialization or overriding their boundary', async () => {
+  const originalFetch = global.fetch;
+  const form = new FormData();
+  form.append('file', 'test audio');
+  let sentBody: unknown;
+  let sentHeaders: HeadersInit | undefined;
+  global.fetch = jest.fn(async (_url, init) => {
+    sentBody = init?.body; sentHeaders = init?.headers;
+    return response(200, '{"data":{"text":"Spoken words"}}').response;
+  });
+  try {
+    await expect(request('/speech', { authMode: 'required', method: 'POST', body: form })).resolves.toEqual({ data: { text: 'Spoken words' } });
+    expect(sentBody).toBe(form);
+    expect(sentHeaders).not.toHaveProperty('Content-Type');
+  } finally { global.fetch = originalFetch; }
+});

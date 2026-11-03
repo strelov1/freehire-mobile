@@ -11,13 +11,12 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppSymbol } from '@/components/AppSymbol';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { markNotificationRead } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
-import { useTabBarClearance } from '@/lib/tabBarVisibility';
 import type { NotificationItem, NotificationsPage } from '@/lib/types';
 import { useNotifications } from '@/lib/useNotifications';
 
@@ -100,7 +99,7 @@ function NotificationCard({
  * one with neither only marks read.
  */
 export default function NotificationsScreen() {
-  const tabBarClearance = useTabBarClearance();
+  const insets = useSafeAreaInsets();
   const c = getColors(useColorScheme());
   const qc = useQueryClient();
   const {
@@ -194,7 +193,7 @@ export default function NotificationsScreen() {
         renderItem={({ item }) => (
           <NotificationCard item={item} colors={c} onPress={() => onPressCard(item)} />
         )}
-        contentContainerStyle={[styles.listContent, { paddingBottom: tabBarClearance }]}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + Space.lg }]}
         ItemSeparatorComponent={() => <View style={{ height: Space.sm }} />}
         onEndReachedThreshold={0.6}
         onEndReached={() => {
@@ -222,6 +221,13 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.fill, { backgroundColor: c.background }]}>
       <View style={styles.header}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={8}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}>
+          <AppSymbol name="chevron.left" size={20} tintColor={c.brandStrong} />
+        </Pressable>
         <Text style={[styles.headerTitle, { color: c.foreground }]}>Notifications</Text>
       </View>
       {body}
@@ -233,6 +239,9 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center', gap: Space.md, padding: Space.xl },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space.md,
     paddingHorizontal: Space.lg,
     paddingVertical: Space.md,
   },

@@ -8,13 +8,12 @@ import { AppSymbol } from '@/components/AppSymbol';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { useTabBarVisibility } from '@/lib/tabBarStore';
 import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
-import { useUnreadCount } from '@/lib/useNotifications';
 
 const ROUTE_META: Record<string, { label: string; icon: SFSymbol; iconFilled: SFSymbol }> = {
   index: { label: 'Jobs', icon: 'briefcase', iconFilled: 'briefcase.fill' },
   companies: { label: 'Companies', icon: 'building.2', iconFilled: 'building.2.fill' },
+  assistant: { label: 'Assistant', icon: 'text.bubble', iconFilled: 'text.bubble.fill' },
   tracker: { label: 'Tracker', icon: 'tray.2', iconFilled: 'tray.2.fill' },
-  notifications: { label: 'Notifications', icon: 'bell', iconFilled: 'bell.fill' },
   profile: { label: 'Profile', icon: 'person.crop.circle', iconFilled: 'person.crop.circle.fill' },
 };
 
@@ -32,7 +31,6 @@ const INDICATOR_WIDTH = 28;
 function AnimatedTabBar({ state, navigation, insets }: BottomTabBarProps) {
   const c = getColors(useColorScheme());
   const { hidden } = useTabBarVisibility();
-  const { data: unreadCount = 0 } = useUnreadCount();
   const [barWidth, setBarWidth] = useState(0);
 
   // The bar's real height includes the bottom safe-area inset; `hidden` is
@@ -77,7 +75,6 @@ function AnimatedTabBar({ state, navigation, insets }: BottomTabBarProps) {
         if (!meta) return null;
         const focused = state.index === index;
         const tint = focused ? c.brandStrong : c.mutedForeground;
-        const badge = route.name === 'notifications' && unreadCount > 0 ? unreadCount : null;
 
         return (
           <Pressable
@@ -89,11 +86,6 @@ function AnimatedTabBar({ state, navigation, insets }: BottomTabBarProps) {
             accessibilityLabel={meta.label}>
             <View>
               <AppSymbol name={focused ? meta.iconFilled : meta.icon} size={21} tintColor={tint} />
-              {badge != null ? (
-                <View style={[styles.badge, { backgroundColor: c.brand }]}>
-                  <Text style={[styles.badgeText, { color: c.brandForeground }]}>{badge}</Text>
-                </View>
-              ) : null}
             </View>
             <Text style={[styles.label, { color: tint }]}>{meta.label}</Text>
           </Pressable>
@@ -110,8 +102,8 @@ export default function TabsLayout() {
       tabBar={(props) => <AnimatedTabBar {...props} />}>
       <Tabs.Screen name="index" />
       <Tabs.Screen name="companies" />
+      <Tabs.Screen name="assistant" />
       <Tabs.Screen name="tracker" />
-      <Tabs.Screen name="notifications" />
       <Tabs.Screen name="profile" />
     </Tabs>
   );
@@ -143,20 +135,5 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 10,
     fontWeight: '600',
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -10,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '700',
   },
 });

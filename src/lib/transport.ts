@@ -75,6 +75,8 @@ type RequestOptions = {
   expectsBody?: boolean;
   headers?: Record<string, string>;
   cache?: RequestCache;
+  /** Return successful SSE responses without consuming their body. */
+  responseType?: 'stream';
 };
 
 function parseBackendError(value: unknown): { code?: string; message?: string } {
@@ -126,8 +128,9 @@ function composedSignal(caller: AbortSignal | undefined, timeoutMs: number) {
   return {
     signal: controller.signal,
     abortSource: () => source,
-    cleanup: () => {
+    cleanup: (keepCaller = false) => {
       clearTimeout(timeout);
+      if (keepCaller) return;
       caller?.removeEventListener('abort', onCallerAbort);
     },
   };
@@ -136,7 +139,8 @@ function composedSignal(caller: AbortSignal | undefined, timeoutMs: number) {
 /** Shared fetch boundary. It normalizes failures but never mutates session state. */
 export async function request<T>(path: string, options: RequestOptions): Promise<T> {
   let serializedBody: string | undefined;
-  if (options.body !== undefined) {
+  const multipart = typeof FormData !== 'undefined' && options.body instanceof FormData ? options.body : undefined;
+  if (options.body !== undefined && !multipart) {
     try {
       serializedBody = JSON.stringify(options.body);
     } catch (cause) {
@@ -145,6 +149,7 @@ export async function request<T>(path: string, options: RequestOptions): Promise
   }
 
   const timeout = composedSignal(options.signal, options.timeoutMs ?? 15_000);
+  let handedOffStream = false;
   try {
     let response: Response;
     try {
@@ -153,7 +158,7 @@ export async function request<T>(path: string, options: RequestOptions): Promise
         credentials: 'include',
         cache: options.cache,
         signal: timeout.signal,
-        body: serializedBody,
+        body: multipart ?? serializedBody,
         headers: {
           Accept: 'application/json',
           ...(serializedBody === undefined ? {} : { 'Content-Type': 'application/json' }),
@@ -169,6 +174,12 @@ export async function request<T>(path: string, options: RequestOptions): Promise
         throw new ApiError({ kind: 'aborted', endpoint: path, cause });
       }
       throw new ApiError({ kind: 'offline', endpoint: path, retryable: true, cause });
+    }
+
+    if (response.ok && options.responseType === 'stream') {
+      // The stream owner aborts its signal after reading, releasing this linkage.
+      handedOffStream = true;
+      return response as T;
     }
 
     const bodyless = response.status === 204 || response.status === 205 || options.expectsBody === false;
@@ -238,6 +249,6 @@ export async function request<T>(path: string, options: RequestOptions): Promise
     }
     return payload as T;
   } finally {
-    timeout.cleanup();
+    timeout.cleanup(handedOffStream);
   }
 }
