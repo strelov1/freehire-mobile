@@ -56,7 +56,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     // app, not a renamed one.
     name: 'freehire',
     slug: 'freehire-mobile',
-    version: '1.0.3',
+    version: '1.0.4',
     orientation: 'portrait',
     icon: './assets/images/freehire-icon-light.png',
     scheme: 'freehiremobile',
@@ -183,6 +183,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     plugins: [
       'expo-router',
+      ['expo-audio', {
+        microphonePermission: 'Allow FreeHire to record your voice and turn it into a message draft.',
+        enableBackgroundRecording: false,
+        enableBackgroundPlayback: false,
+      }],
       [
         'expo-notifications',
         {

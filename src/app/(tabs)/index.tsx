@@ -31,6 +31,7 @@ import { useTabBarClearance } from '@/lib/tabBarVisibility';
 import { useTabBarVisibility } from '@/lib/tabBarStore';
 import type { Job } from '@/lib/types';
 import { useJobSearch } from '@/lib/useJobSearch';
+import { useUnreadCount } from '@/lib/useNotifications';
 import { useProfile } from '@/lib/useProfile';
 
 export default function FeedScreen() {
@@ -68,6 +69,7 @@ export default function FeedScreen() {
   const sortOptions = sortOptionsFor(filters.q);
   const selectedSort = selectedSortFor(filters);
   const needsSkills = matchSortNeedsSkills(filters, (profile?.skills?.length ?? 0) > 0);
+  const { data: unreadCount = 0 } = useUnreadCount();
   const selectedRegions = filters.facets.regions ?? [];
   const regionTint = selectedRegions.length > 0 ? c.brandStrong : c.mutedForeground;
 
@@ -79,52 +81,69 @@ export default function FeedScreen() {
 
   // The pinned search bar stays put while the list scrolls. The Filters button
   // lives inside the field (trailing), and the result count sits just beneath.
-  // Notifications and profile live in the bottom tab bar, not this header.
+  // Profile lives in the bottom tab bar; the notifications bell sits beside the search field.
   const top = (
     <View style={styles.top}>
-      <View style={[styles.search, { backgroundColor: c.card, borderColor: c.border }]}>
-        <Pressable
-          onPress={() => router.push('/filters/quick')}
-          hitSlop={8}
-          style={({ pressed }) => [
-            styles.regionInInput,
-            { borderRightColor: c.border },
-            pressed && { opacity: 0.6 },
-          ]}>
-          <AppSymbol name="globe" size={17} tintColor={regionTint} />
-        </Pressable>
-        <AppSymbol name="magnifyingglass" size={17} tintColor={c.mutedForeground} />
-        <TextInput
-          value={filters.q}
-          onChangeText={setQuery}
-          placeholder="Search jobs…"
-          placeholderTextColor={c.mutedForeground}
-          style={[styles.searchInput, { color: c.foreground }]}
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="search"
-        />
-        {filters.q.length > 0 ? (
-          <Pressable onPress={() => setQuery('')} hitSlop={8}>
-            <AppSymbol name="xmark.circle.fill" size={16} tintColor={c.mutedForeground} />
+      <View style={styles.searchRow}>
+        <View style={[styles.search, { backgroundColor: c.card, borderColor: c.border }]}>
+          <Pressable
+            onPress={() => router.push('/filters/quick')}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.regionInInput,
+              { borderRightColor: c.border },
+              pressed && { opacity: 0.6 },
+            ]}>
+            <AppSymbol name="globe" size={17} tintColor={regionTint} />
           </Pressable>
-        ) : null}
-        <Pressable
-          onPress={() => router.push('/filters')}
-          hitSlop={8}
-          style={({ pressed }) => [
-            styles.filtersInInput,
-            { borderLeftColor: c.border },
-            pressed && { opacity: 0.6 },
-          ]}>
-          <AppSymbol
-            name="slider.horizontal.3"
-            size={18}
-            tintColor={activeCount > 0 ? c.brandStrong : c.foreground}
+          <AppSymbol name="magnifyingglass" size={17} tintColor={c.mutedForeground} />
+          <TextInput
+            value={filters.q}
+            onChangeText={setQuery}
+            placeholder="Search jobs…"
+            placeholderTextColor={c.mutedForeground}
+            style={[styles.searchInput, { color: c.foreground }]}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
           />
-          {activeCount > 0 ? (
-            <View style={[styles.badge, { backgroundColor: c.brand }]}>
-              <Text style={[styles.badgeText, { color: c.brandForeground }]}>{activeCount}</Text>
+          {filters.q.length > 0 ? (
+            <Pressable onPress={() => setQuery('')} hitSlop={8}>
+              <AppSymbol name="xmark.circle.fill" size={16} tintColor={c.mutedForeground} />
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={() => router.push('/filters')}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.filtersInInput,
+              { borderLeftColor: c.border },
+              pressed && { opacity: 0.6 },
+            ]}>
+            <AppSymbol
+              name="slider.horizontal.3"
+              size={18}
+              tintColor={activeCount > 0 ? c.brandStrong : c.foreground}
+            />
+            {activeCount > 0 ? (
+              <View style={[styles.badge, { backgroundColor: c.brand }]}>
+                <Text style={[styles.badgeText, { color: c.brandForeground }]}>{activeCount}</Text>
+              </View>
+            ) : null}
+          </Pressable>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+          onPress={() => router.push('/notifications')}
+          hitSlop={8}
+          style={({ pressed }) => [styles.bell, pressed && { opacity: 0.6 }]}>
+          <AppSymbol name="bell" size={20} tintColor={c.foreground} />
+          {unreadCount > 0 ? (
+            <View style={[styles.bellBadge, { backgroundColor: c.brand }]}>
+              <Text style={[styles.badgeText, { color: c.brandForeground }]}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Text>
             </View>
           ) : null}
         </Pressable>
@@ -241,7 +260,26 @@ const styles = StyleSheet.create({
     paddingBottom: Space.sm,
     gap: Space.sm,
   },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: Space.xs },
+  bell: {
+    width: 32,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 4,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
   search: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Space.sm,
