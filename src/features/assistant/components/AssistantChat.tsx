@@ -23,7 +23,8 @@ export function AssistantChat({ conversation }: { conversation: Conversation }) 
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [composerFocused, setComposerFocused] = useState(false);
   const busy = phase === 'sending';
-  const running = busy || phase === 'recovering';
+  // A recovering chat can still send: offer Stop only while no draft is waiting and no stop is pending.
+  const running = busy || (phase === 'recovering' && !stopRequested && !draft.trim());
   const canSend = (phase === 'ready' || phase === 'recovering') && !unavailable;
   const canSubmit = canSend && !voiceActive && !!draft.trim();
   let activity = 'Assistant is working…';
@@ -34,7 +35,8 @@ export function AssistantChat({ conversation }: { conversation: Conversation }) 
     void conversation.load();
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') void conversation.load();
-      else conversation.detach();
+      // `inactive` is a transient overlay (Control Center, a call banner): the reply keeps streaming.
+      else if (state === 'background') conversation.detach();
     });
     return () => { subscription.remove(); conversation.detach(); };
   }, [conversation]);

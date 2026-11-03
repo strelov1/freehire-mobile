@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { renderedText } from '@/__tests__/renderedText';
 import { AssistantChat } from './AssistantChat';
 import { Conversation } from '../model/conversation';
+import { StreamInterrupted } from '../model/stream';
 import { VoiceInput } from './VoiceInput';
 
 jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
@@ -39,5 +40,27 @@ it('sends a typed message, renders the reply and keeps the composer usable', asy
   expect(renderedText(renderer).join(' ')).toContain('Find remote jobs');
   expect(renderedText(renderer).join(' ')).toContain('Here is your answer.');
   expect(renderer.root.findByType(TextInput).props.value).toBe('');
+  act(() => renderer.unmount());
+});
+
+it('offers Send again once a draft is typed in an interrupted chat, and Stop only while it is empty', async () => {
+  const conversation = new Conversation({
+    get: async () => ({ session: { id: 'chat', label: 'My chat', preset: 'chat' }, messages: [] }),
+    send: async (text, onEvent) => {
+      onEvent({ type: 'user_prompt', text });
+      throw new StreamInterrupted();
+    },
+    cancel: async () => {},
+  });
+  let renderer!: Renderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = Renderer.create(<SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, bottom: 34, left: 0, right: 0 } }}><AssistantChat conversation={conversation} /></SafeAreaProvider>);
+  });
+  act(() => renderer.root.findByType(TextInput).props.onChangeText('Find remote jobs'));
+  await act(async () => { renderer.root.findByProps({ accessibilityLabel: 'Send message' }).props.onPress(); });
+  expect(conversation.getSnapshot().phase).toBe('recovering');
+  expect(renderer.root.findAllByProps({ accessibilityLabel: 'Stop generating' }).length).toBeGreaterThan(0);
+  act(() => renderer.root.findByType(TextInput).props.onChangeText('And in Spain'));
+  expect(renderer.root.findByProps({ accessibilityLabel: 'Send message' }).props.disabled).toBe(false);
   act(() => renderer.unmount());
 });
