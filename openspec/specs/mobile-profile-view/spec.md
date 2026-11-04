@@ -71,12 +71,23 @@ indicator in place of the chips/location summary/empty state.
 - **WHEN** the signed-in user's saved profile has not finished loading
 - **THEN** the screen shows a loading indicator instead of profile content
 
-### Requirement: No push controls on the profile screen
-The profile screen SHALL NOT present a push-notification toggle or a
-send-test-notification action.
+### Requirement: Push controls on the profile screen
+The profile screen SHALL present a push-notification switch for this device
+and, while it is on, a send-test-notification action. It is the only place a
+device gets registered for push: from 2026-08-12 to 2026-11-03 the screen
+carried no switch, no device could register, and every push channel a user
+chose on the web reached nobody.
 
-#### Scenario: Signed-in user views the profile screen
-- **WHEN** a signed-in user opens the profile screen, regardless of whether
-  push notifications are enabled for their device
-- **THEN** no push-notification switch or "Send test notification" control
-  is shown anywhere on the screen
+#### Scenario: Signed-in user turns push on
+- **WHEN** a signed-in user flips the switch on and grants the OS permission
+- **THEN** this device's token is registered with the backend and the switch
+  shows on, with a "Send test notification" action beneath it
+
+#### Scenario: Launch keeps a registration alive without creating one
+- **WHEN** the app launches signed in with the OS permission granted
+- **THEN** it re-registers this device's token only if the backend already
+  lists it, so a user who switched push off is never re-registered
+
+#### Scenario: Web
+- **WHEN** the app runs on web
+- **THEN** no push section is shown
