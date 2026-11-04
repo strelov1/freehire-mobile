@@ -1,9 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { listPushDevices, registerPushToken, sendTestPush, unregisterPushToken } from './api';
 import { useAuth } from './authStore';
-import { describeTestPush, getPushToken, isRegistered, pushPlatform } from './push';
+import { describeTestPush, getPushToken, isRegistered, pushPlatform, refreshThisDevice } from './push';
 
 /** Copy for the one failure the user can actually fix themselves. */
 const PERMISSION_DENIED =
@@ -11,8 +11,9 @@ const PERMISSION_DENIED =
 
 /**
  * A push-notification switch's state, the two actions that change it, and the
- * test send. Not currently wired into any screen (see the add-mobile-profile-
- * screen change) — kept for a future push-settings surface to reuse.
+ * test send. Drives the switch on the Profile tab — the only way a device gets
+ * registered, so a build without it delivers no push at all (it was dropped
+ * from 2026-08-12 to 2026-11-03 and prod held zero devices).
  *
  * State is derived, never stored: `enabled` is true when this device's Expo
  * token is among the registered devices the backend reports. Reads go through
@@ -91,4 +92,30 @@ export function usePushNotifications() {
   const sendTest = useCallback(() => run(async () => describeTestPush(await sendTestPush())), [run]);
 
   return { enabled, loading: isPending, busy, error, enable, disable, sendTest };
+}
+
+/**
+ * Once per signed-in account per launch, refresh this device's existing push
+ * registration (see `refreshThisDevice`). Mounted at the app root so it runs
+ * whatever screen the app opens on, not only when the Profile tab is visited.
+ */
+export function usePushRefreshOnLaunch() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const userId = user?.id;
+
+  useEffect(() => {
+    if (userId === undefined) return;
+    let cancelled = false;
+    void refreshThisDevice().then((token) => {
+      if (cancelled || !token) return;
+      // The switch reads the same two caches; seed them so it renders "on"
+      // without a second token read.
+      qc.setQueryData(['push', 'token'], token);
+      void qc.invalidateQueries({ queryKey: ['push', 'devices'] });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, qc]);
 }

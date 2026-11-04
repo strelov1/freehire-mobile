@@ -6,6 +6,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 
 import { AppSymbol } from '@/components/AppSymbol';
 import { getColors, Radius, Space } from '@/constants/freehire';
+import { usePushRefreshOnLaunch } from '@/lib/usePushNotifications';
 import { useTabBarVisibility } from '@/lib/tabBarStore';
 import { TAB_BAR_HEIGHT } from '@/lib/tabBarVisibility';
 
@@ -96,6 +97,8 @@ function AnimatedTabBar({ state, navigation, insets }: BottomTabBarProps) {
 }
 
 export default function TabsLayout() {
+  // The tab shell is mounted for the app's whole life, under every provider.
+  usePushRefreshOnLaunch();
   return (
     <Tabs
       screenOptions={{ headerShown: false }}

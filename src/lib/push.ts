@@ -15,7 +15,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-import { unregisterPushToken } from './api';
+import { listPushDevices, registerPushToken, unregisterPushToken } from './api';
 import { getNotifications, type NotificationResponse } from './notifications';
 import type { PushDevice, TestPushResult } from './types';
 
@@ -116,6 +116,34 @@ export async function unregisterThisDevice(): Promise<void> {
     if (token) await unregisterPushToken(token);
   } catch {
     // Deliberately swallowed: see above.
+  }
+}
+
+/**
+ * The launch-time check for a signed-in user: keeps an existing registration
+ * alive, never creates one. Reading the token is itself the refresh — Expo's
+ * token service maps this install's Expo token to whatever native (APNs/FCM)
+ * token the OS holds now, so a rotated native token is picked up here — and
+ * the re-POST stamps `last_seen_at`.
+ *
+ * It registers only a token the backend already lists for this account. A
+ * token it does not list means the user switched push off here (or never on),
+ * and since the OS permission outlives that choice, re-registering it would
+ * silently undo it. Resolves to the token it confirmed, or null.
+ *
+ * Best-effort: a launch must not fail because the network did.
+ */
+export async function refreshThisDevice(): Promise<string | null> {
+  try {
+    const platform = pushPlatform();
+    if (!platform) return null;
+    const token = await getPushToken(false);
+    if (!token) return null;
+    if (!isRegistered(await listPushDevices(), token)) return null;
+    await registerPushToken(token, platform);
+    return token;
+  } catch {
+    return null;
   }
 }
 

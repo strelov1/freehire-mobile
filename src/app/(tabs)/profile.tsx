@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppSymbol } from '@/components/AppSymbol';
+import { PushSettings } from '@/components/PushSettings';
 import { useAuth } from '@/lib/authStore';
 import { getColors, Radius, Space } from '@/constants/freehire';
 import { formatDate } from '@/lib/format';
@@ -26,8 +27,8 @@ import { useProfile } from '@/lib/useProfile';
 
 /**
  * The Profile tab: a signed-in user's identity, their saved profile
- * (specializations and skills, with a way into the editor), the plan, account
- * deletion, and sign-out buttons. Signed out, it shows an inline "Sign in"
+ * (specializations and skills, with a way into the editor), the plan, the
+ * push-notification switch, account deletion, and sign-out buttons. Signed out, it shows an inline "Sign in"
  * prompt instead of redirecting.
  */
 export default function ProfileScreen() {
@@ -222,6 +223,8 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
         </View>
+
+        <PushSettings />
 
         {/* Legal & Policies Section */}
         <View style={styles.profileSection}>
