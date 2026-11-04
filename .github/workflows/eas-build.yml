@@ -61,6 +61,13 @@ on:
   # `workflow_dispatch` and `workflow_call` input lists separate. `choice` has
   # no `workflow_call` equivalent, hence `string` for the two enums.
   workflow_call:
+    secrets:
+      EXPO_TOKEN:
+        description: Expo access token for EAS builds and submissions
+        required: true
+      FIREBASE_SERVICE_ACCOUNT_JSON:
+        description: Service account for Firebase App Distribution
+        required: false
     inputs:
       platform:
         type: string

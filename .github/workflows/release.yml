@@ -36,7 +36,8 @@ jobs:
       # hand in App Store Connect. Attach the build to the external group there,
       # in the same visit.
       testflight-group: "Freehire Test Team"
-    secrets: inherit
+    secrets:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
   android:
     name: Android → Firebase
@@ -46,7 +47,9 @@ jobs:
       profile: preview
       distribute-android: true
       testers-group: testers
-    secrets: inherit
+    secrets:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
 
   # Google Play, on the `production` profile, because Play takes the .aab that
   # only that profile emits. This is a SECOND Android build per tag rather than
@@ -69,4 +72,5 @@ jobs:
       platform: android
       profile: production
       submit-android: true
-    secrets: inherit
+    secrets:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
